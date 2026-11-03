@@ -1,0 +1,30 @@
+{
+  "name": "Aube : 100 pompes, 300 crunchs",
+  "short_name": "Aube",
+  "description": "Un programme du matin, six jours par semaine, qui s'adapte à tes performances.",
+  "lang": "fr",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#11142A",
+  "theme_color": "#11142A",
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    },
+    {
+      "src": "icon-maskable.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}
