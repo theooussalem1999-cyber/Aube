@@ -1,7 +1,7 @@
 # Aube
 
 Programme du matin pour atteindre **100 pompes et 300 crunchs d'affilée**.
-Six séances par semaine (du lundi au samedi), environ 25 minutes, repos le dimanche.
+Six séances par semaine (du lundi au samedi), environ 30 minutes souplesse comprise, repos le dimanche avec une séance d'étirements doux facultative.
 
 L'appli tient en quelques fichiers statiques. Elle n'utilise aucun serveur, aucun compte,
 aucune API et aucune intelligence artificielle : elle fonctionne hors ligne, aussi longtemps
@@ -56,18 +56,20 @@ Les données sont stockées dans le navigateur du téléphone. Elles ne sont eff
 - **Test de départ** : ton maximum de pompes, 3 minutes de pause, ton maximum de crunchs.
 - **Semaine type** : grosses séances de pompes lundi (classique), mercredi (pyramide), vendredi (densité), toujours séparées de 48 h de récupération ; grosses séances de crunchs mardi (classique), jeudi (endurance), samedi (densité). Les abdos travaillent aussi les jours de pompes (3 séries modérées). Les jours d'abdos, 2 petites séries de pompes très faciles entretiennent le geste (désactivables dans les réglages). Chaque séance ajoute un bloc jambes, dos, cardio ou mobilité, un échauffement et des étirements.
 - **Cycle de 4 semaines** : construction, progression, surcharge, puis une semaine allégée terminée par un test le samedi.
+- **Souplesse** : chaque séance finit par 5 à 9 minutes d'étirements statiques. Trois thèmes reviennent deux fois par semaine (hanches et adducteurs, ischios et mollets, hanches, cuisses et fessiers). Le repère de maintien passe de 30 à 60 secondes au fil des cycles et s'ajuste selon ce que tu tiens vraiment. Le chrono sonne au repère mais ne passe jamais tout seul. Le dimanche, une séance douce facultative d'environ 15 minutes. Un bilan au mètre ruban (doigts-sol, écart des talons, papillon) revient avec chaque test.
+- **Ordre des exercices** : debout d'abord, puis à genoux, à quatre pattes, sur le ventre, assis et sur le dos. Chaque exercice d'échauffement et chaque étirement attend ton « Go ».
 - **Adaptation** : après chaque séance, tu indiques ton ressenti. Séries réussies : +1 niveau (environ +4 % de capacité). Trop facile : +2. Trop dur ou séries manquées : −1. Douleur : −2. Après plus de 10 jours d'arrêt, le programme s'allège ; après 3 semaines, il propose un nouveau test.
-- **Récompenses** : XP à chaque répétition, niveaux et titres, série de séances protégée par des jokers, 28 médailles, records, projection de la date d'objectif.
+- **Récompenses** : XP à chaque répétition et chaque minute d'étirement, niveaux et titres, série de séances protégée par des jokers, 35 médailles, records, projection de la date d'objectif.
 
 Le détail et les sources sont dans l'appli : **Réglages > La méthode et les sources**.
 
 ## Le guide des gestes
 
-L'onglet **Gestes** présente les 32 exercices du programme avec une animation, les muscles travaillés, les points clés, les erreurs fréquentes, une version plus facile et une plus difficile. Pendant la séance, l'animation de l'exercice en cours s'affiche à l'écran, et le lien « Détails » ouvre la fiche complète.
+L'onglet **Gestes** présente les 43 exercices du programme avec une animation, les muscles travaillés, les points clés, les erreurs fréquentes, une version plus facile et une plus difficile. Pendant la séance, l'animation de l'exercice en cours s'affiche à l'écran, et le lien « Détails » ouvre la fiche complète.
 
 ## Modifier l'appli plus tard
 
-Tout le code est dans `index.html`, lisible avec n'importe quel éditeur de texte. Les réglages du programme (formats, pourcentages, cycle) sont regroupés au début du premier bloc `<script>`, dans les constantes `EX`, `FORMATS`, `WEEK` et `PHASES`. Après une modification, dépose le nouveau fichier au même endroit et change le numéro dans `sw.js` (`aube-1.0.0` → `aube-1.0.1`) pour que les téléphones prennent la nouvelle version.
+Tout le code est dans `index.html`, lisible avec n'importe quel éditeur de texte. Les réglages du programme (formats, pourcentages, cycle) sont regroupés au début du premier bloc `<script>`, dans les constantes `EX`, `FORMATS`, `WEEK` et `PHASES`. Après une modification, dépose le nouveau fichier au même endroit et change le numéro dans `sw.js` (par exemple `aube-1.2.0` → `aube-1.2.1`) : les téléphones installent alors la nouvelle version à l'ouverture suivante.
 
 ## Crédits
 
