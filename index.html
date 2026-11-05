@@ -276,6 +276,8 @@ p { margin: 0; }
 .techfig { width: 150px; float: right; margin: -6px 0 4px 10px; border-radius: 12px; background: var(--sunk); padding: 2px 4px; }
 
 .pgroup { display: block; }
+.pround { display: block; margin-top: 6px; font-size: var(--fs-xs); font-weight: 700; color: var(--ink); }
+.pround:first-child { margin-top: 0; }
 .pgroup + .pgroup { margin-top: 3px; }
 .good { color: var(--teal); font-weight: 700; }
 .btn-go { min-height: 76px; font-family: var(--display); font-weight: 800; font-size: 2rem; letter-spacing: .06em; }
@@ -383,6 +385,7 @@ textarea.input { min-height: 120px; padding: 12px; font-size: var(--fs-xs); font
   *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; }
 }
 [hidden] { display: none !important; }
+body:has(#player:not([hidden])) #toast { top: calc(72px + env(safe-area-inset-top, 0px)); bottom: auto; }
 
 </style>
 </head>
@@ -400,7 +403,7 @@ textarea.input { min-height: 120px; padding: 12px; font-size: var(--fs-xs); font
 <canvas id="confetti" hidden></canvas>
 <div id="toast" hidden role="status" aria-live="polite"></div>
 <noscript><p style="padding:24px">Aube a besoin de JavaScript pour fonctionner.</p></noscript>
-<script>window.AUBE_VERSION = '1.2.0';
+<script>window.AUBE_VERSION = '1.2.1';
 /* ==========================================================================
    AUBE · moteur de programme (pur, sans DOM)
    Toute la logique d'entraînement, d'adaptation et de récompense vit ici.
@@ -551,12 +554,13 @@ const Aube = (() => {
   };
 
   const MODULES = {
-    legs: { title: 'Jambes et gainage', items: ['squat', 'lunge', 'bridge', 'wallsit', 'plank'] },
-    back: { title: 'Dos et posture', items: ['superman', 'angels', 'birddog', 'bridge', 'highknees'] },
-    cardio: { title: 'Cardio', items: ['jj', 'highknees', 'jumpsquat', 'skater', 'burpee'] },
-    legsback: { title: 'Jambes et dos', items: ['squat', 'superman', 'revlunge', 'bridge1', 'birddog'] },
-    cardiocore: { title: 'Cardio et gainage', items: ['jj', 'plank', 'climber', 'sideplank', 'skater'] },
-    mobility: { title: 'Mobilité et dos', items: ['jj', 'lungetwist', 'skater', 'birddog', 'superman'] }
+    /* items : tours 1 et 3 ; alt : tour 2, mêmes muscles avec d'autres exercices. */
+    legs: { title: 'Jambes et gainage', items: ['squat', 'lunge', 'bridge', 'wallsit', 'plank'], alt: ['revlunge', 'squatslow', 'birddog', 'sideplank', 'bridge1'] },
+    back: { title: 'Dos et posture', items: ['superman', 'angels', 'birddog', 'bridge', 'highknees'], alt: ['skater', 'plank', 'angels', 'superman', 'bridge1'] },
+    cardio: { title: 'Cardio', items: ['jj', 'highknees', 'jumpsquat', 'skater', 'burpee'], alt: ['highknees', 'lunge', 'burpee', 'skater', 'climber'] },
+    legsback: { title: 'Jambes et dos', items: ['squat', 'superman', 'revlunge', 'bridge1', 'birddog'], alt: ['lunge', 'wallsit', 'plank', 'angels', 'bridge'] },
+    cardiocore: { title: 'Cardio et gainage', items: ['jj', 'plank', 'climber', 'sideplank', 'skater'], alt: ['highknees', 'jumpsquat', 'birddog', 'climber', 'sideplank'] },
+    mobility: { title: 'Mobilité et dos', items: ['jj', 'lungetwist', 'skater', 'birddog', 'superman'], alt: ['highknees', 'squatslow', 'lungetwist', 'angels', 'bridge'] }
   };
   const WARMUP = byPos(['jj', 'arms', 'twist', 'squatslow', 'catcow', 'scap']);
   const WORKREST = [[30, 30], [35, 25], [40, 20], [45, 15]];
@@ -571,7 +575,7 @@ const Aube = (() => {
     return {
       v: 1, createdAt: now, updatedAt: now,
       name: '',
-      settings: { theme: 'auto', voice: true, sound: true, vibrate: true, cadence: 1.6, reminder: '07:00', pushRappel: true, waitGo: 'warm', flexHold: 'auto', goals: { pushup: 100, crunch: 300 } },
+      settings: { theme: 'auto', voice: true, sound: true, vibrate: true, cadence: 1.6, reminder: '07:00', pushRappel: true, waitGo: 'warm', flexHold: 'auto', maxRounds: 3, goals: { pushup: 100, crunch: 300 } },
       startDate: null, anchor: null,
       pushVariant: 'standard',
       levels: { pushup: 0, knee: 0, crunch: 0 },
@@ -744,8 +748,9 @@ const Aube = (() => {
     }
     const mod = MODULES[W.module];
     const perRound = mod.items.length * (wr[0] + wr[1]);
-    const rounds = light ? 1 : clamp(Math.round((TARGET_SEC - used) / perRound), 1, 3);
-    blocks.push({ kind: 'intervals', role: 'module', module: W.module, title: mod.title, rounds, items: byPos(mod.items).map(id => item(id, wr[0], wr[1])) });
+    const maxRounds = clamp(parseInt(st.settings.maxRounds, 10) || 3, 1, 3);
+    const rounds = light ? 1 : clamp(Math.round((TARGET_SEC - used) / perRound), 1, maxRounds);
+    blocks.push({ kind: 'intervals', role: 'module', module: W.module, title: mod.title, rounds, items: byPos(mod.items).map(id => item(id, wr[0], wr[1])), alt: byPos(mod.alt).map(id => item(id, wr[0], wr[1])) });
     used += rounds * perRound;
     blocks.push(flex);
     return Object.assign(base, { focus, ex, other, format: W.format, formatLabel: FORMATS[W.format].label, phase, cycleWeek: ctx.cycleWeek, cycleIndex: ctx.cycleIndex, light, blocks, estSec: Math.round(used) });
@@ -1661,7 +1666,9 @@ if (typeof module !== 'undefined') module.exports = Guide;
       if (b.kind === 'intervals') {
         const what = b.role === 'module' ? b.title + (b.rounds > 1 ? `, ${b.rounds} tours` : ', 1 tour') : b.title;
         const tail = b.role === 'module' ? `${b.items[0].work} s d'effort, ${b.items[0].rest} s de pause.` : 'Chaque exercice démarre quand tu appuies sur Go.';
-        return `<li><span class="what">${esc(what)}</span><span class="dur">${fmtMin(blockSec(b))}</span><span class="detail">${groupedNames(b.items)}<span class="pgroup">${tail}</span></span></li>`;
+        let names = groupedNames(b.items);
+        if (b.rounds > 1 && b.alt) names = `<span class="pround">${b.rounds > 2 ? 'Tours 1 et 3' : 'Tour 1'}</span>${groupedNames(b.items)}<span class="pround">Tour 2</span>${groupedNames(b.alt)}`;
+        return `<li><span class="what">${esc(what)}</span><span class="dur">${fmtMin(blockSec(b))}</span><span class="detail">${names}<span class="pgroup">${tail}</span></span></li>`;
       }
       if (b.kind === 'stretch') {
         const txt = `Repère : ${b.hold} s par position${b.items.some(i => i.uni) ? ' et par côté' : ''}. Le chrono sonne mais ne passe jamais tout seul.${HOLDWHY[b.why] || ''}`;
@@ -2117,6 +2124,7 @@ if (typeof module !== 'undefined') module.exports = Guide;
         <div class="setting"><span>Vibrations</span>${sw('vibrate', st.vibrate)}</div>
         <div class="setting"><span class="grow">Pompes légères les jours d'abdos<br><span class="xs muted">2 petites séries faciles. Désactive pour un repos complet des bras.</span></span>${sw('pushRappel', st.pushRappel !== false)}</div>
         <div class="setting"><span class="grow">Bouton Go avant chaque exercice<br><span class="xs muted">Les étirements attendent toujours ton Go.</span></span>${seg('waitGo', [['warm', 'Échauffement'], ['all', 'Partout']], st.waitGo || 'warm')}</div>
+        <div class="setting"><span class="grow">Tours de circuit au maximum<br><span class="xs muted">Moins de tours : séance plus courte. Le programme en met moins quand tes séries s'allongent.</span></span>${seg('maxRounds', [[3, '3'], [2, '2'], [1, '1']], st.maxRounds || 3)}</div>
         <div class="setting"><span class="grow">Durée des étirements<br><span class="xs muted">Auto : de 30 s à 60 s au fil des cycles, ajustée selon ce que tu tiens vraiment.</span></span>${seg('flexHold', [['auto', 'Auto'], [30, '30 s'], [45, '45 s'], [60, '60 s']], st.flexHold || 'auto')}</div>
         <div class="setting"><span class="grow">Rythme des crunchs<br><span class="xs muted">Secondes par répétition en mode cadence</span></span>${seg('cadence', [[1.4, '1,4'], [1.6, '1,6'], [1.8, '1,8'], [2, '2']], st.cadence)}</div>
       </div>
@@ -2236,6 +2244,7 @@ if (typeof module !== 'undefined') module.exports = Guide;
 
   /* ---------- Lecteur de séance ---------- */
   let P = null;
+  const roundList = (b, r) => (r % 2 === 1 && b.alt && b.alt.length) ? b.alt : b.items;
   function buildSteps(plan) {
     const steps = [];
     const goAll = S.settings.waitGo === 'all';
@@ -2243,12 +2252,16 @@ if (typeof module !== 'undefined') module.exports = Guide;
       if (b.kind === 'intervals') {
         steps.push({ t: 'intro', b, bi });
         const waitGo = b.role === 'warmup' || goAll;
-        const flat = []; for (let r = 0; r < b.rounds; r++) b.items.forEach(it => flat.push({ it, r }));
-        flat.forEach((f, i) => {
-          if (waitGo) steps.push({ t: 'ready', b, bi, it: f.it, r: f.r, n: i, of: flat.length });
-          steps.push({ t: 'work', b, bi, it: f.it, r: f.r, sec: f.it.work });
-          if (f.it.rest > 0 && i < flat.length - 1) steps.push({ t: 'rest', b, bi, sec: f.it.rest, next: flat[i + 1].it.name, nextId: flat[i + 1].it.id });
-        });
+        for (let r = 0; r < b.rounds; r++) {
+          const list = roundList(b, r);
+          if (r > 0) steps.push({ t: 'round', b, bi, r });
+          list.forEach((it, j) => {
+            if (waitGo) steps.push({ t: 'ready', b, bi, it, r, n: j, of: list.length });
+            steps.push({ t: 'work', b, bi, it, r, sec: it.work });
+            const nx = list[j + 1];
+            if (it.rest > 0 && nx) steps.push({ t: 'rest', b, bi, sec: it.rest, next: nx.name, nextId: nx.id });
+          });
+        }
       } else if (b.kind === 'sets') {
         if (b.restBefore) steps.push({ t: 'rest', b, bi, sec: b.restBefore, next: b.title });
         steps.push({ t: 'intro', b, bi });
@@ -2270,6 +2283,30 @@ if (typeof module !== 'undefined') module.exports = Guide;
     if (plan.kind === 'train') steps.push({ t: 'feeling', bi: plan.blocks.length });
     return steps;
   }
+  /* La séance en cours est enregistrée à chaque étape : si Android recharge l'appli
+     pendant que tu es ailleurs, elle reprend là où tu en étais. */
+  const RUNKEY = 'aube.run';
+  function saveRun() {
+    if (!P || window.__AUBE_NORESUME) return;
+    try {
+      const steps = P.steps.map(st => { const o = Object.assign({}, st); delete o.b; return o; });
+      const sub = P.sub && P.sub.mode === 'stretch' ? { mode: 'stretch', phase: 'prep', side: P.sub.side } : null;
+      localStorage.setItem(RUNKEY, JSON.stringify({ v: 1, date: P.plan.date, savedAt: Date.now(), plan: P.plan, steps, i: P.i, log: P.log, startedAt: P.startedAt, t0: P.t0, feeling: P.feeling, pain: P.pain, kneeAdded: !!P.kneeAdded, sub }));
+    } catch (e) { /* stockage plein ou indisponible */ }
+  }
+  function clearRun() { try { localStorage.removeItem(RUNKEY); } catch (e) { /* rien */ } }
+  function loadRun() { try { const r = JSON.parse(localStorage.getItem(RUNKEY) || 'null'); return r && r.v === 1 && r.plan && Array.isArray(r.steps) ? r : null; } catch (e) { return null; } }
+  function resumeRun(r) {
+    const plan = r.plan;
+    const steps = r.steps.map(st => Object.assign(st, { b: plan.blocks[st.bi] }));
+    let i = Math.min(r.i, steps.length - 1);
+    // un chrono interrompu repart de son écran Go, ou du début de l'exercice
+    if (steps[i] && steps[i].t === 'work' && steps[i - 1] && steps[i - 1].t === 'ready') i--;
+    P = { plan, steps, i, log: r.log, startedAt: r.startedAt, t0: r.t0, timer: null, endAt: 0, paused: false, remain: 0, sub: r.sub, feeling: r.feeling || 0, pain: !!r.pain, kneeAdded: !!r.kneeAdded };
+    $('#player').hidden = false; document.body.style.overflow = 'hidden';
+    wakeOn();
+    showStep();
+  }
   function startSession(plan) {
     audio();
     try { if (navigator.storage && navigator.storage.persist) navigator.storage.persist().then(v => { window.__aubePersisted = v; }); } catch (e) { /* rien */ }
@@ -2279,6 +2316,7 @@ if (typeof module !== 'undefined') module.exports = Guide;
     showStep();
   }
   function closePlayer() {
+    clearRun();
     clearInterval(P && P.timer); stopCounter();
     P = null; $('#player').hidden = true; $('#player').innerHTML = ''; document.body.style.overflow = '';
     wakeOff(); try { speechSynthesis.cancel(); } catch (e) { /* rien */ }
@@ -2311,8 +2349,10 @@ if (typeof module !== 'undefined') module.exports = Guide;
   function showStep() {
     const s = cur(); if (!s) return finish();
     clearInterval(P.timer);
+    saveRun();
     if (s.t === 'intro') return stepIntro(s);
     if (s.t === 'work' || s.t === 'rest') { P.paused = false; P.endAt = Date.now() + s.sec * 1000; return stepTimed(s, s.t === 'rest'); }
+    if (s.t === 'round') return stepRound(s);
     if (s.t === 'ready') return stepReady(s);
     if (s.t === 'stretch') return stepStretch(s);
     if (s.t === 'flextest') return stepFlex(s);
@@ -2329,7 +2369,7 @@ if (typeof module !== 'undefined') module.exports = Guide;
         <ul class="result-list">${b.items.map(it => `<li><span><b>${esc(it.name)}</b></span>${guideLink(it.id, 'Voir')}<span class="detail">${esc(A.posLabel(it.id))}${it.uni ? ', les deux côtés' : ''}</span></li>`).join('')}</ul>`;
       say(b.title);
     } else if (b.kind === 'intervals') {
-      sub = b.rounds > 1 ? `${b.rounds} tours de ${b.items.length} exercices` : `${b.items.length} exercices`;
+      sub = b.rounds > 1 ? `${b.rounds} tours de ${b.items.length} exercices${b.alt ? ', le tour 2 avec d\'autres exercices' : ''}` : `${b.items.length} exercices`;
       const go = b.role === 'warmup' || S.settings.waitGo === 'all';
       body = `<span class="pname">${esc(b.title)}</span><p class="phow">${esc(sub)}, ${b.items[0].work} s chacun${b.items[0].rest ? `, ${b.items[0].rest} s de pause` : ''}.${go ? ' Chaque exercice démarre quand tu appuies sur Go.' : ''}</p>
         <ul class="result-list">${b.items.map(it => `<li><span><b>${esc(it.name)}</b></span>${guideLink(it.id, 'Voir')}<span class="detail">${esc(it.how)}</span></li>`).join('')}</ul>`;
@@ -2390,6 +2430,14 @@ if (typeof module !== 'undefined') module.exports = Guide;
       if (c > 0) { const e = $('#cd'); if (e) e.textContent = c; beep(660, .1); }
       else { clearInterval(P.timer); beep(1175, .2); buzz(80); done(); }
     }, FAST ? 60 : 1000);
+  }
+  function stepRound(s) {
+    const b = s.b, list = roundList(b, s.r), fresh = list !== b.items;
+    chrome(b.title, `Tour ${s.r + 1} sur ${b.rounds}`,
+      `<span class="pname">Tour ${s.r + 1} sur ${b.rounds}</span><p class="phow">${fresh ? 'D\'autres exercices pour ce tour, les mêmes muscles.' : 'On reprend les exercices du premier tour.'} ${list[0].work} s d'effort, ${list[0].rest} s de pause. Souffle un peu et bois si besoin.</p>
+       <ul class="result-list">${list.map(it => `<li><span><b>${esc(it.name)}</b></span>${guideLink(it.id, 'Voir')}<span class="detail">${esc(A.posLabel(it.id))}</span></li>`).join('')}</ul>`,
+      `<button class="btn btn-sun btn-block" data-act="p-next">C'est parti</button><button class="link" data-act="p-skipblock">Arrêter le circuit ici</button>`);
+    say(`Tour ${s.r + 1} sur ${b.rounds}.`);
   }
   function stepReady(s) {
     const it = s.it;
@@ -2587,6 +2635,7 @@ if (typeof module !== 'undefined') module.exports = Guide;
   }
   function finish() {
     clearInterval(P.timer);
+    clearRun();
     const k = today();
     if (P.plan.kind === 'flexcheck') {
       const r = A.recordFlexTest(S, k, P.log.flex);
@@ -2696,7 +2745,7 @@ if (typeof module !== 'undefined') module.exports = Guide;
       case 'install': if (installEvt) { installEvt.prompt(); installEvt.userChoice.finally(() => { installEvt = null; render(); }); } break;
       case 'set': {
         const k = t.dataset.k, v = t.dataset.v;
-        S.settings[k] = k === 'cadence' ? parseFloat(v) : (k === 'flexHold' && v !== 'auto') ? parseInt(v, 10) : v; save(); applyTheme();
+        S.settings[k] = k === 'cadence' ? parseFloat(v) : k === 'maxRounds' ? parseInt(v, 10) : (k === 'flexHold' && v !== 'auto') ? parseInt(v, 10) : v; save(); applyTheme();
         t.parentElement.querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', String(b === t)));
         break;
       }
@@ -2726,7 +2775,7 @@ if (typeof module !== 'undefined') module.exports = Guide;
       case 'p-snext': {
         const s = cur(), sub = P.sub; clearInterval(P.timer);
         P.log.stretch.push({ id: s.it.id, side: s.it.uni ? sub.side : 0, target: s.it.hold, sec: Math.round((Date.now() - sub.start) / 1000), base: s.it.base });
-        if (s.it.uni && sub.side === 1) { P.sub = { mode: 'stretch', phase: 'prep', side: 2 }; stepStretch(s); }
+        if (s.it.uni && sub.side === 1) { P.sub = { mode: 'stretch', phase: 'prep', side: 2 }; saveRun(); stepStretch(s); }
         else next();
         break;
       }
@@ -2761,7 +2810,11 @@ if (typeof module !== 'undefined') module.exports = Guide;
     if (gp) gp.addEventListener('change', upd); if (gc) gc.addEventListener('change', upd);
     const f = $('#import-file'); if (f) f.addEventListener('change', () => { const file = f.files && f.files[0]; if (!file) return; const r = new FileReader(); r.onload = () => importText(String(r.result || '')); r.readAsText(file); });
   }
-  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') { if (P) wakeOn(); else render(); } });
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') { if (P) wakeOn(); else render(); }
+    else if (P) saveRun();
+  });
+  window.addEventListener('pagehide', () => { if (P) saveRun(); });
   window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); installEvt = e; if (!P) render(); });
   window.addEventListener('appinstalled', () => { installEvt = null; toast('Aube est installée'); });
   matchMedia('(prefers-color-scheme: dark)').addEventListener && matchMedia('(prefers-color-scheme: dark)').addEventListener('change', applyTheme);
@@ -2775,6 +2828,13 @@ if (typeof module !== 'undefined') module.exports = Guide;
     const fresh = A.checkBadges(S, today()); if (fresh.length) save();
     try { if (navigator.storage && navigator.storage.persisted) window.__aubePersisted = await navigator.storage.persisted(); } catch (e) { /* rien */ }
     render();
+    const run = loadRun();
+    if (run) {
+      const fresh = run.date === today() && Date.now() - (run.savedAt || 0) < 4 * 3600e3;
+      const alreadyDone = run.plan.kind !== 'flexcheck' && A.sessionOn(S, run.date);
+      if (fresh && !alreadyDone) { resumeRun(run); toast('Séance reprise là où tu l\'avais laissée'); }
+      else clearRun();
+    }
     if (!window.__AUBE_PREVIEW && 'serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1')) {
       try {
         const hadController = !!navigator.serviceWorker.controller;
@@ -2785,7 +2845,7 @@ if (typeof module !== 'undefined') module.exports = Guide;
         });
       } catch (e) { /* rien */ }
     }
-    window.__aube = { get state() { return S; }, A };
+    window.__aube = { get state() { return S; }, get player() { return P ? { i: P.i, t: (P.steps[P.i] || {}).t, sets: P.log.sets.length, stretch: P.log.stretch.length } : null; }, A };
   })();
 })();
 
