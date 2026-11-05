@@ -1,5 +1,5 @@
 /* Aube : fonctionnement hors ligne. Change CACHE pour forcer une mise à jour. */
-const CACHE = 'aube-1.2.1';
+const CACHE = 'aube-1.2.2';
 const ASSETS = ['./', './index.html', './manifest.webmanifest', './icon-192.png', './icon-512.png', './icon-maskable.png'];
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(ASSETS.map(u => new Request(u, { cache: 'reload' })))).then(() => self.skipWaiting()));

@@ -1,7 +1,7 @@
 # Aube
 
 Programme du matin pour atteindre **100 pompes et 300 crunchs d'affilée**.
-Six séances par semaine (du lundi au samedi), environ 30 minutes souplesse comprise, repos le dimanche avec une séance d'étirements doux facultative.
+Six séances par semaine (du lundi au samedi), 25 minutes au début souplesse comprise (plus longues à mesure que les séries grandissent), repos le dimanche avec une séance d'étirements doux facultative.
 
 L'appli tient en quelques fichiers statiques. Elle n'utilise aucun serveur, aucun compte,
 aucune API et aucune intelligence artificielle : elle fonctionne hors ligne, aussi longtemps
@@ -44,6 +44,10 @@ Une appli web ne peut pas sonner seule à heure fixe sans serveur. Deux solution
 - dans **Réglages > Rappel du matin**, le bouton crée un événement Google Agenda récurrent du lundi au samedi ;
 - ou un réveil Android répété du lundi au samedi, nommé « Aube ».
 
+## Si l'appli se ferme pendant une séance
+
+La séance en cours est enregistrée à chaque étape. Si Android ferme Aube en arrière-plan, tu reprends à l'exercice où tu étais en la rouvrant. Pour abandonner une séance, touche la croix puis « Quitter ».
+
 ## Sauvegarder et changer de téléphone
 
 Les données sont stockées dans le navigateur du téléphone. Elles ne sont effacées que si tu désinstalles l'appli ou vides les données de Chrome pour ce site.
@@ -54,10 +58,10 @@ Les données sont stockées dans le navigateur du téléphone. Elles ne sont eff
 ## Comment le programme fonctionne
 
 - **Test de départ** : ton maximum de pompes, 3 minutes de pause, ton maximum de crunchs.
-- **Semaine type** : grosses séances de pompes lundi (classique), mercredi (pyramide), vendredi (densité), toujours séparées de 48 h de récupération ; grosses séances de crunchs mardi (classique), jeudi (endurance), samedi (densité). Les abdos travaillent aussi les jours de pompes (3 séries modérées). Les jours d'abdos, 2 petites séries de pompes très faciles entretiennent le geste (désactivables dans les réglages). Chaque séance ajoute un bloc jambes, dos, cardio ou mobilité, un échauffement et des étirements.
+- **Semaine type** : grosses séances de pompes lundi (classique), mercredi (pyramide), vendredi (densité), toujours séparées de 48 h de récupération ; grosses séances de crunchs mardi (classique), jeudi (endurance), samedi (densité). Les abdos travaillent aussi les jours de pompes (3 séries modérées). Les jours d'abdos, 2 petites séries de pompes très faciles entretiennent le geste (désactivables dans les réglages). Chaque séance ajoute un échauffement et un circuit de 5 exercices (jambes, dos, gainage ou cardio), chacun une seule fois pendant 1 min 30, avec 30 s pour préparer le suivant ; deux séries d'exercices alternent d'une semaine sur l'autre.
 - **Cycle de 4 semaines** : construction, progression, surcharge, puis une semaine allégée terminée par un test le samedi.
 - **Souplesse** : chaque séance finit par 5 à 9 minutes d'étirements statiques. Trois thèmes reviennent deux fois par semaine (hanches et adducteurs, ischios et mollets, hanches, cuisses et fessiers). Le repère de maintien passe de 30 à 60 secondes au fil des cycles et s'ajuste selon ce que tu tiens vraiment. Le chrono sonne au repère mais ne passe jamais tout seul. Le dimanche, une séance douce facultative d'environ 15 minutes. Un bilan au mètre ruban (doigts-sol, écart des talons, papillon) revient avec chaque test.
-- **Ordre des exercices** : debout d'abord, puis à genoux, à quatre pattes, sur le ventre, assis et sur le dos. Chaque exercice d'échauffement et chaque étirement attend ton « Go ».
+- **Ordre des exercices** : debout d'abord, puis à genoux, à quatre pattes, sur le ventre, assis et sur le dos. Chaque exercice d'échauffement, chaque étirement et le premier exercice du circuit attendent ton « Go ». Pendant le repos, l'écran montre l'exercice suivant.
 - **Adaptation** : après chaque séance, tu indiques ton ressenti. Séries réussies : +1 niveau (environ +4 % de capacité). Trop facile : +2. Trop dur ou séries manquées : −1. Douleur : −2. Après plus de 10 jours d'arrêt, le programme s'allège ; après 3 semaines, il propose un nouveau test.
 - **Récompenses** : XP à chaque répétition et chaque minute d'étirement, niveaux et titres, série de séances protégée par des jokers, 35 médailles, records, projection de la date d'objectif.
 
