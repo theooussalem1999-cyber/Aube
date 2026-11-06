@@ -411,7 +411,7 @@ body:has(#player:not([hidden])) #toast { top: calc(72px + env(safe-area-inset-to
 <canvas id="confetti" hidden></canvas>
 <div id="toast" hidden role="status" aria-live="polite"></div>
 <noscript><p style="padding:24px">Aube a besoin de JavaScript pour fonctionner.</p></noscript>
-<script>window.AUBE_VERSION = '1.2.2';
+<script>window.AUBE_VERSION = '1.3.0';
 /* ==========================================================================
    AUBE · moteur de programme (pur, sans DOM)
    Toute la logique d'entraînement, d'adaptation et de récompense vit ici.
@@ -473,7 +473,7 @@ const Aube = (() => {
 
   /* Cycle de 4 semaines : 3 semaines de montée, 1 semaine allégée terminée par un test le samedi. */
   const PHASES = {
-    0: { id: 0, name: 'Découverte', wf: .6, max: false, progress: false, note: 'Volume réduit pour apprendre les gestes après le test.' },
+    0: { id: 0, name: 'Découverte', wf: .85, max: true, progress: true, note: 'Première semaine : le programme se cale sur toi grâce à la série au maximum.' },
     1: { id: 1, name: 'Construction', wf: .92, max: true, progress: true, note: 'On pose les bases du cycle.' },
     2: { id: 2, name: 'Progression', wf: 1, max: true, progress: true, note: 'Le volume monte.' },
     3: { id: 3, name: 'Surcharge', wf: 1.06, max: true, progress: true, note: 'La semaine la plus exigeante du cycle.' },
@@ -492,10 +492,16 @@ const Aube = (() => {
     lunge: ['Fentes alternées', 'Un grand pas en avant, genou arrière vers le sol, puis reviens. Change de jambe à chaque fois.'],
     revlunge: ['Fentes arrière', 'Recule une jambe et descends le genou arrière près du sol. Alterne les côtés.'],
     bridge: ['Pont fessier', 'Sur le dos, genoux pliés, pousse dans les talons pour monter le bassin. Serre les fessiers en haut.'],
-    bridge1: ['Pont sur une jambe', 'Comme le pont fessier, une jambe tendue en l\'air. Change de jambe à mi-temps.'],
+    bridge1: ['Pont sur une jambe', 'Comme le pont fessier, une jambe tendue en l\'air. Toutes les répétitions d\'un côté, puis de l\'autre.'],
     wallsit: ['Chaise contre un mur', 'Dos au mur, cuisses parallèles au sol, genoux à 90°. Tiens la position.'],
     plank: ['Planche', 'Sur les avant-bras, corps gainé de la tête aux talons. Ne laisse pas tomber le bassin.'],
-    sideplank: ['Gainage latéral', 'Sur un avant-bras, corps aligné sur le côté. Change de côté à mi-temps.'],
+    sideplank: ['Gainage latéral', 'Sur un avant-bras, corps aligné sur le côté, bassin haut.'],
+    march: ['Marche sur place', 'Marche sur place en levant les genoux à hauteur de hanche, bras qui accompagnent. Rythme tranquille.'],
+    hipcircle: ['Cercles de hanches', 'Debout, mains sur les hanches, dessine de grands cercles avec le bassin.'],
+    legswing: ['Balancier de jambe', 'Debout, une main au mur si besoin, balance une jambe d\'avant en arrière, sans forcer.'],
+    goodmorning: ['Bonjour', 'Debout, mains sur la poitrine, genoux souples. Penche le buste en avant en reculant les fesses, dos plat, puis remonte.'],
+    wallpush: ['Pompes contre le mur', 'Mains au mur à hauteur d\'épaules, corps gainé. Rapproche la poitrine du mur, puis repousse.'],
+    deadbug: ['Dead bug', 'Sur le dos, bras vers le plafond, genoux pliés au-dessus des hanches. Tends un bras et la jambe opposée sans décoller le bas du dos.'],
     superman: ['Superman', 'À plat ventre, décolle bras et jambes du sol en même temps, tiens 2 s, redescends. Regard vers le sol.'],
     angels: ['Anges au sol', 'À plat ventre, bras décollés du sol : fais-les glisser des hanches jusqu\'au-dessus de la tête, puis reviens.'],
     birddog: ['Bird dog', 'À quatre pattes, tends un bras et la jambe opposée, tiens 2 s, alterne. Dos plat comme une table.'],
@@ -535,7 +541,8 @@ const Aube = (() => {
     deepsquat: 'accroupi', hipflexor: 'genoux', stchest: 'debout', cobra: 'ventre', stglute: 'dos', child: 'enfant',
     sidelunge: 'debout', frog: 'quatre', butterfly: 'assis', straddle: 'assis', recbutterfly: 'dos',
     standfold: 'debout', calf: 'debout', seatfold: 'assis', supham: 'dos', suptwist: 'dos', quad: 'debout',
-    pushup: 'planche', knee: 'quatre', crunch: 'dos'
+    pushup: 'planche', knee: 'quatre', crunch: 'dos',
+    march: 'debout', hipcircle: 'debout', legswing: 'debout', goodmorning: 'debout', wallpush: 'debout', deadbug: 'dos'
   };
   const posOf = id => POS_OF[id] || 'debout';
   const posLabel = id => POSL[posOf(id)];
@@ -570,13 +577,63 @@ const Aube = (() => {
     cardiocore: { title: 'Cardio et gainage', items: ['jj', 'plank', 'climber', 'sideplank', 'skater'], alt: ['highknees', 'jumpsquat', 'birddog', 'climber', 'sideplank'] },
     mobility: { title: 'Mobilité et dos', items: ['jj', 'lungetwist', 'skater', 'birddog', 'superman'], alt: ['highknees', 'squatslow', 'lungetwist', 'angels', 'bridge'] }
   };
-  const WARMUP = byPos(['jj', 'arms', 'twist', 'squatslow', 'catcow', 'scap']);
-  /* Circuit : chaque exercice une seule fois, en continu (1 min 30 par défaut), puis 30 s pour préparer le suivant.
-     La séance n'est pas rallongée artificiellement : elle grandit avec tes séries. */
-  const MOD_WORK = 90, MOD_REST = 30;
+  /* Échauffements : on commence toujours doucement (marche), on finit au sol.
+     Trois versions pour les jours de pompes, trois pour les jours de crunchs, qui tournent d'une semaine à l'autre. */
+  const WARMUPS = {
+    push: [['march', 'arms', 'legswing', 'squatslow', 'catcow', 'scap'],
+      ['march', 'twist', 'arms', 'wallpush', 'birddog', 'scap'],
+      ['march', 'jj', 'goodmorning', 'wallpush', 'catcow', 'scap']],
+    crunch: [['march', 'hipcircle', 'goodmorning', 'lungetwist', 'catcow', 'deadbug'],
+      ['march', 'legswing', 'hipcircle', 'squatslow', 'bridge', 'deadbug'],
+      ['march', 'twist', 'lungetwist', 'squatslow', 'birddog', 'deadbug']]
+  };
+  /* Doses : un nombre de mouvements pour presque tout, une durée seulement pour la marche et les positions tenues.
+     base = dose au niveau 0 (volontairement prudente), spr = secondes par répétition (pour estimer la durée). */
+  const WDOSE = {
+    march: { mode: 'time', target: 45 }, jj: { mode: 'reps', target: 12, spr: 1 },
+    arms: { mode: 'reps', target: 10, spr: 2, note: 'vers l\'avant, puis 10 vers l\'arrière' },
+    twist: { mode: 'reps', target: 10, spr: 1.5, note: 'de chaque côté' },
+    legswing: { mode: 'reps', target: 10, spr: 1.5, uni: true, note: 'par jambe' },
+    hipcircle: { mode: 'reps', target: 8, spr: 3, note: 'dans chaque sens' },
+    goodmorning: { mode: 'reps', target: 10, spr: 3 }, squatslow: { mode: 'reps', target: 8, spr: 6 },
+    lungetwist: { mode: 'reps', target: 5, spr: 4, uni: true, note: 'par côté' },
+    wallpush: { mode: 'reps', target: 10, spr: 2 }, catcow: { mode: 'reps', target: 8, spr: 5 },
+    scap: { mode: 'reps', target: 10, spr: 1.5 }, birddog: { mode: 'reps', target: 5, spr: 4, uni: true, note: 'par côté' },
+    deadbug: { mode: 'reps', target: 5, spr: 4, uni: true, note: 'par côté' }, bridge: { mode: 'reps', target: 10, spr: 2.5 }
+  };
+  const DOSE = {
+    squat: { mode: 'reps', base: 12, max: 40, spr: 2.5 }, squatslow: { mode: 'reps', base: 8, max: 20, spr: 6 },
+    lunge: { mode: 'reps', base: 6, max: 20, spr: 3, uni: true, note: 'par jambe' },
+    revlunge: { mode: 'reps', base: 6, max: 20, spr: 3, uni: true, note: 'par jambe' },
+    lungetwist: { mode: 'reps', base: 5, max: 15, spr: 4, uni: true, note: 'par côté' },
+    wallsit: { mode: 'hold', base: 25, max: 120 }, plank: { mode: 'hold', base: 20, max: 120 },
+    sideplank: { mode: 'hold', base: 15, max: 60, uni: true },
+    superman: { mode: 'reps', base: 8, max: 25, spr: 3 }, angels: { mode: 'reps', base: 8, max: 25, spr: 3 },
+    birddog: { mode: 'reps', base: 5, max: 15, spr: 4, uni: true, note: 'par côté' },
+    bridge: { mode: 'reps', base: 12, max: 40, spr: 2.5 }, bridge1: { mode: 'reps', base: 6, max: 20, spr: 3, uni: true, note: 'par jambe' },
+    jj: { mode: 'reps', base: 15, max: 60, spr: 1 }, highknees: { mode: 'reps', base: 20, max: 80, spr: .7, note: 'en comptant chaque genou' },
+    jumpsquat: { mode: 'reps', base: 6, max: 25, spr: 2.5 }, skater: { mode: 'reps', base: 10, max: 40, spr: 1.3, note: 'en comptant chaque saut' },
+    burpee: { mode: 'reps', base: 4, max: 15, spr: 4.5 }, climber: { mode: 'reps', base: 12, max: 50, spr: .8, note: 'en comptant chaque genou' }
+  };
+  const CARDIO = new Set(['jj', 'highknees', 'jumpsquat', 'skater', 'burpee', 'climber']);
+  const C_RATIO = 1.07; // un niveau de circuit = environ 7 % de répétitions en plus
+  const C_REST = 30, C_TRANS = 40;
+  function circuitItem(st, id, sets) {
+    const d = DOSE[id], cat = CARDIO.has(id) ? 'cardio' : 'circuit';
+    let v = d.base * Math.pow(C_RATIO, (st.levels && st.levels[cat]) || 0);
+    v = d.mode === 'reps' ? clamp(Math.round(v), 2, d.max) : clamp(Math.round(v / 5) * 5, 10, d.max);
+    return { id, name: LIB[id][0], how: LIB[id][1], mode: d.mode, target: v, uni: !!d.uni, note: d.note || '', spr: d.spr || 0, cat, sets, rest: C_REST };
+  }
+  function warmItem(id) {
+    const d = WDOSE[id];
+    return { id, name: LIB[id][0], how: LIB[id][1], mode: d.mode, target: d.target, uni: !!d.uni, note: d.note || '', spr: d.spr || 0, cat: 'warm', sets: 1, rest: 0 };
+  }
+  const itemSeconds = it => it.sets * (it.mode === 'reps' ? it.target * it.spr * (it.uni ? 2 : 1) + 8 : (it.target + 6) * (it.uni ? 2 : 1)) + (it.sets - 1) * it.rest;
+  const circuitSeconds = b => b.items.reduce((a, it) => a + itemSeconds(it), 0) + (b.items.length - 1) * (b.transition || 0);
+  /* La séance n'est pas rallongée artificiellement : elle grandit avec tes séries. */
   const MAIN_CAP = 13 * 60;   // le bloc principal ne dépasse pas 13 min
 
-  const item = (id, work, rest) => ({ id, name: LIB[id][0], how: LIB[id][1], work, rest });
+  const item = (id, work, rest) => ({ id, name: LIB[id][0], how: LIB[id][1], work, rest }); // ancien format chronométré
 
   /* ---------- État ---------- */
   function newState() {
@@ -584,10 +641,10 @@ const Aube = (() => {
     return {
       v: 1, createdAt: now, updatedAt: now,
       name: '',
-      settings: { theme: 'auto', voice: true, sound: true, vibrate: true, cadence: 1.6, reminder: '07:00', pushRappel: true, waitGo: 'warm', flexHold: 'auto', modWork: 90, goals: { pushup: 100, crunch: 300 } },
+      settings: { theme: 'auto', voice: true, sound: true, vibrate: true, cadence: 1.6, reminder: '07:00', pushRappel: true, waitGo: 'warm', flexHold: 'auto', csets: 2, goals: { pushup: 100, crunch: 300 } },
       startDate: null, anchor: null,
       pushVariant: 'standard',
-      levels: { pushup: 0, knee: 0, crunch: 0 },
+      levels: { pushup: 0, knee: 0, crunch: 0, circuit: 0, cardio: 0 },
       records: { pushup: { v: 0, d: null }, knee: { v: 0, d: null }, crunch: { v: 0, d: null } },
       history: { pushup: [], knee: [], crunch: [] },
       sessions: [],
@@ -607,6 +664,20 @@ const Aube = (() => {
     out.sessions = Array.isArray(out.sessions) ? out.sessions : [];
     out.badges = out.badges || {};
     out.flexTests = Array.isArray(out.flexTests) ? out.flexTests : [];
+    out.repairs = Array.isArray(out.repairs) ? out.repairs : [];
+    /* Réparation 1.3 : avant, une seule question « Comment c'était ? » couvrait toute la séance.
+       Un « Trop dur » dû au circuit a pu faire baisser le niveau de pompes ou de crunchs alors que
+       toutes les séries étaient réussies. On annule cette baisse pour la dernière séance concernée. */
+    if (!out.repairs.includes('feel13')) {
+      const last = {};
+      out.sessions.forEach(x => { if (x.kind === 'train' && x.ex) last[x.ex] = x; });
+      Object.values(last).forEach(x => {
+        const main = (x.sets || []).filter(y => y.role === 'main' && !y.isMax);
+        const t = main.reduce((a, y) => a + y.target, 0), d = main.reduce((a, y) => a + Math.min(y.done, y.target), 0);
+        if (x.feeling === 4 && !x.pain && t && d / t >= .97 && x.levelsBefore && x.levelsAfter && x.levelsAfter[x.ex] < x.levelsBefore[x.ex] && out.levels[x.ex] === x.levelsAfter[x.ex]) out.levels[x.ex] = x.levelsBefore[x.ex];
+      });
+      out.repairs.push('feel13');
+    }
     return out;
   }
 
@@ -658,7 +729,7 @@ const Aube = (() => {
   function rappelSets(st, ex, light) {
     const C = cap(ex, st.levels[ex]);
     if (ex === 'crunch') {
-      const t = clamp(Math.round(C * (light ? .28 : .35)), 1, 40);
+      const t = clamp(Math.round(C * (light ? .38 : .45)), 1, 40);
       if (t >= 25) return [{ target: t, isMax: false, rest: 45 }, { target: t, isMax: false, rest: 0 }];
       return [{ target: t, isMax: false, rest: 45 }, { target: t, isMax: false, rest: 45 }, { target: t, isMax: false, rest: 0 }];
     }
@@ -695,12 +766,18 @@ const Aube = (() => {
     return { kind: 'stretch', role: 'flex', theme, title: 'Souplesse : ' + th.title.toLowerCase(), themeTitle: th.title, items, hold: fh.hold, why: fh.why };
   }
   const flexTestBlock = () => ({ kind: 'flextest', role: 'flextest', title: 'Bilan souplesse', items: Object.keys(FT) });
-  const warmBlock = () => ({ kind: 'intervals', role: 'warmup', title: 'Échauffement', rounds: 1, items: WARMUP.map(id => item(id, 30, 0)) });
+  function warmBlock(st, k, type) {
+    const w = dow(k), list = WARMUPS[type] || WARMUPS.push;
+    const dayIdx = { 1: 0, 3: 1, 5: 2, 2: 0, 4: 1, 6: 2 }[w] || 0;
+    const weekNo = st && st.startDate ? Math.max(0, Math.floor(diffDays(mondayOf(st.startDate), k) / 7)) : 0;
+    const ids = byPos(list[(dayIdx + weekNo) % list.length]);
+    return { kind: 'circuit', role: 'warmup', title: 'Échauffement', items: ids.map(warmItem), transition: 0 };
+  }
 
   /* Séance facultative du dimanche : réveil doux puis étirements de tout le corps. */
   function flexPlan(st, k) {
     const fh = flexHold(st, k), hold = Math.min(fh.hold, 45);
-    const warm = { kind: 'intervals', role: 'warmup', title: 'Réveil en douceur', rounds: 1, items: byPos(['arms', 'twist', 'squatslow', 'catcow']).map(id => item(id, 30, 0)) };
+    const warm = { kind: 'circuit', role: 'warmup', title: 'Réveil en douceur', items: byPos(['march', 'arms', 'hipcircle', 'catcow']).map(warmItem), transition: 0 };
     const block = { kind: 'stretch', role: 'flex', theme: 'S', title: 'Souplesse du dimanche', themeTitle: 'Tout le corps', items: byPos(SUNDAY).map(id => stretchItem(id, hold, false)), hold, why: fh.why };
     return { date: k, dow: dow(k), kind: 'flex', blocks: [warm, block], estSec: 140 + stretchSeconds(block) };
   }
@@ -712,7 +789,7 @@ const Aube = (() => {
     st = st || newState();
     const W = WEEK[dow(k)];
     const stretch = stretchBlock(st, k, (W && W.theme) || 'C', 'crunch');
-    return { date: k, dow: dow(k), kind: 'test', blocks: [warmBlock(),
+    return { date: k, dow: dow(k), kind: 'test', blocks: [warmBlock(st, k, 'push'),
       { kind: 'test', role: 'test', ex: 'pushup', title: 'Test pompes' },
       { kind: 'pause', role: 'pause', title: 'Récupération', seconds: 180, note: 'Marche, respire, secoue les bras. Le test des crunchs arrive.' },
       { kind: 'test', role: 'test', ex: 'crunch', title: 'Test crunchs' },
@@ -727,12 +804,12 @@ const Aube = (() => {
     if (ctx.kind === 'before' || ctx.kind === 'rest') return base;
 
     const isTest = ctx.kind === 'test' || (st.forceTest && opts.today && ctx.kind === 'train');
-    const warm = warmBlock();
 
     if (isTest) return Object.assign(base, testPlan(k, st), { initial: !!ctx.initial, forced: ctx.kind !== 'test', phase: ctx.phase || PHASES[0], cycleWeek: ctx.cycleWeek });
 
     const W = WEEK[ctx.w];
     const focus = W.focus;
+    const warm = warmBlock(st, k, focus === 'crunch' ? 'crunch' : 'push');
     const ex = mainEx(st, focus);
     const other = focus === 'crunch' ? mainEx(st, 'push') : 'crunch';
     const phase = ctx.phase;
@@ -744,7 +821,7 @@ const Aube = (() => {
 
     const blocks = [warm, main];
     const flex = stretchBlock(st, k, W.theme, focus === 'crunch' ? 'crunch' : 'push');
-    let used = 210 + setsSeconds(ex, sets) + stretchSeconds(flex);
+    let used = circuitSeconds(warm) + setsSeconds(ex, sets) + stretchSeconds(flex);
     const wantRappel = other === 'crunch' || st.settings.pushRappel !== false;
     if (!light && wantRappel) {
       const rs = rappelSets(st, other, phase.id === 4 || phase.id === 0);
@@ -755,12 +832,12 @@ const Aube = (() => {
       used += setsSeconds(other, rs) + 45;
     }
     const mod = MODULES[W.module];
-    const work = light ? 45 : clamp(parseInt(st.settings.modWork, 10) || MOD_WORK, 30, 180);
+    const nSets = light ? 1 : clamp(parseInt(st.settings.csets, 10) || 2, 1, 3);
     const variant = Math.floor(diffDays(mondayOf(st.startDate), k) / 7) % 2; // une semaine sur deux, l'autre série d'exercices
     const ids = byPos(variant ? mod.alt : mod.items);
-    const modItems = ids.map((id, j) => item(id, work, j < ids.length - 1 ? MOD_REST : 0));
-    blocks.push({ kind: 'intervals', role: 'module', module: W.module, title: mod.title, rounds: 1, items: modItems, variant });
-    used += modItems.reduce((a, it) => a + it.work + it.rest, 0) + 10;
+    const cblock = { kind: 'circuit', role: 'module', module: W.module, title: mod.title, items: ids.map(id => circuitItem(st, id, nSets)), transition: C_TRANS, variant };
+    blocks.push(cblock);
+    used += circuitSeconds(cblock);
     blocks.push(flex);
     return Object.assign(base, { focus, ex, other, format: W.format, formatLabel: FORMATS[W.format].label, phase, cycleWeek: ctx.cycleWeek, cycleIndex: ctx.cycleIndex, light, blocks, estSec: Math.round(used) });
   }
@@ -863,6 +940,22 @@ const Aube = (() => {
       if (ex === 'knee' && cap('knee', nl) >= 20) st.forceTest = true;
       const reps = log.sets.reduce((a, s) => a + s.done * EX[s.ex].xp, 0);
       xp += Math.round(reps) + Math.round((log.workSec != null ? log.workSec : (log.intervals || 0) * 30) / 15) + 40;
+      // circuit : niveau « renfo » et niveau « cardio », réglés par la deuxième question et les répétitions faites
+      const cs = (log.circuit || []).filter(x => x.role === 'module');
+      ['circuit', 'cardio'].forEach(cat => {
+        const xs = cs.filter(x => x.cat === cat);
+        if (!xs.length) return;
+        const tt = xs.reduce((a, x) => a + x.target, 0), dd = xs.reduce((a, x) => a + Math.min(x.done, x.target), 0);
+        const cc = tt ? dd / tt : 1, F = log.cfeel || 2, Lc = st.levels[cat] || 0;
+        let to = Lc, cwhy = 'stable';
+        if (log.pain) { to = Lc - 2; cwhy = 'douleur'; }
+        else if (cc < .8) { to = Lc - (F === 4 ? 3 : 1); cwhy = 'recul'; }
+        else if (log.light) { to = F === 1 ? Lc + 1 : Lc; cwhy = F === 1 ? 'monte' : 'stable'; }
+        else { to = Lc + ({ 1: 2, 2: 1, 3: 0, 4: -2 })[F]; cwhy = F === 1 ? 'saut' : F === 2 ? 'monte' : F === 3 ? 'consolide' : 'recul'; }
+        to = clamp(to, -8, 25);
+        st.levels[cat] = to;
+        changes.push({ kind: 'circuit', cat, from: Lc, to, why: cwhy, completion: cc });
+      });
       const perfect = log.sets.every(s => s.isMax ? s.done >= s.min : s.done >= s.target);
       if (perfect) xp += 20;
       if (nl > L) xp += 15 * (nl - L);
@@ -871,6 +964,8 @@ const Aube = (() => {
     const stretch = (log.stretch || []).map(x => ({ id: x.id, side: x.side || 0, target: x.target || 0, sec: Math.round(x.sec || 0), base: !!x.base }));
     const stretchSec = stretch.reduce((a, x) => a + Math.min(x.sec, 300), 0);
     xp += Math.round(stretchSec / 6);
+    const circuit = (log.circuit || []).map(x => ({ id: x.id, role: x.role, cat: x.cat, mode: x.mode, target: x.target, done: x.done }));
+    xp += Math.round(circuit.reduce((a, x) => a + (x.mode === 'reps' ? x.done * .3 : x.done / 6), 0));
     const flex = log.flex && Object.keys(log.flex).length ? mergeFlex(st, today, log.flex) : null;
     xp += prs.length * 50;
 
@@ -881,7 +976,7 @@ const Aube = (() => {
       feeling: log.feeling || null, pain: !!log.pain, sets: log.sets || [], intervals: log.intervals || 0,
       tests: log.tests || null, perfect: !!log.perfect, gap,
       levelsBefore: before, levelsAfter: Object.assign({}, st.levels), prs,
-      stretch, stretchSec, flex: flex ? flex.vals : null
+      stretch, stretchSec, flex: flex ? flex.vals : null, circuit, cfeel: log.cfeel || null
     };
     st.sessions = st.sessions.filter(s => s.date !== today);
     st.sessions.push(rec);
@@ -1074,7 +1169,7 @@ const Aube = (() => {
   return {
     dkey, parseKey, addDays, diffDays, dow, mondayOf, clamp,
     EX, FORMATS, WEEK, PHASES, LIB, MODULES, BADGES, TITLES,
-    POSL, posOf, posLabel, byPos, THEMES, FT, UNI,
+    POSL, posOf, posLabel, byPos, THEMES, FT, UNI, DOSE, WDOSE, CARDIO, circuitSeconds, itemSeconds,
     flexHold, flexPlan, flexCheckPlan, recordFlexTest, flexProgress, stretchSeconds,
     cap, levelFor, newState, migrate, dayContext, planDay, testPlan, buildSets, applySession, detrain,
     streakInfo, totals, checkBadges, projection, weekView, playerLevel, totalXp, xpForLevel, sessionOn, mainEx
@@ -1256,6 +1351,26 @@ const Guide = (() => {
     stglute: { frames: [
       mod(BACK_LIE, { a: [[90, 72], [88, 72]], l: [{ u: 30, l: 95 }, [94, 90]], w: 400, d: 1300 }),
       mod(BACK_LIE, { a: [[84, 70], [82, 70]], l: [{ u: 15, l: 85 }, [88, 74]], w: 1200, d: 1300 })] },
+    march: { frames: [
+      { h: [80, 47], t: 2, a: [{ u: 205, l: 165 }, { u: 158, l: 120 }], l: [{ u: 138, l: 182 }, { u: 182, l: 180 }], d: 520 },
+      { h: [80, 47], t: 2, a: [{ u: 158, l: 120 }, { u: 205, l: 165 }], l: [{ u: 182, l: 180 }, { u: 138, l: 182 }], d: 520 }] },
+    hipcircle: { view: 'front', solid: true, ease: 'linear', frames: [
+      { h: [75, 49], t: -6, a: [[70, 49], [82, 51]], ab: [1, -1], l: [[88, 90], [72, 90]], d: 450 },
+      { h: [80, 47.5], t: 0, a: [[74, 47.5], [86, 47.5]], ab: [1, -1], l: [[88, 90], [72, 90]], d: 450 },
+      { h: [85, 49], t: 6, a: [[78, 51], [90, 49]], ab: [1, -1], l: [[88, 90], [72, 90]], d: 450 },
+      { h: [80, 50.5], t: 0, a: [[74, 50.5], [86, 50.5]], ab: [1, -1], l: [[88, 90], [72, 90]], d: 450 }] },
+    legswing: { frames: [
+      { h: [80, 49], t: -3, a: [[86, 46], [77, 46]], l: [{ u: 138, l: 145 }, [79, 90]], d: 650 },
+      { h: [80, 49], t: 4, a: [[86, 46], [77, 46]], l: [{ u: 218, l: 212 }, [79, 90]], d: 650 }] },
+    goodmorning: { frames: [
+      { h: [80, 49], t: 0, a: [{ u: 160, l: 20 }, { u: 165, l: 25 }], l: [[82, 90], [79, 90]], w: 150, d: 1100 },
+      { h: [73, 50], t: 68, a: [{ u: 228, l: 88 }, { u: 233, l: 93 }], l: [[82, 90], [79, 90]], w: 200, d: 1100 }] },
+    wallpush: { props: [{ wall: 122 }], frames: [
+      { h: [79.3, 52.8], t: 25, a: [[122, 28], [122, 30]], l: [[62, 90], [60, 90]], w: 150, d: 850 },
+      { h: [83.7, 55.2], t: 32, a: [[122, 29], [122, 31]], l: [[62, 90], [60, 90]], w: 100, d: 850 }] },
+    deadbug: { frames: [
+      { h: [74, 84], t: 270, hd: 0, a: [{ u: 5, l: 5 }, { u: 0, l: 0 }], l: [{ u: 0, l: 90 }, { u: 3, l: 93 }], w: 250, d: 1000 },
+      { h: [74, 84], t: 270, hd: 0, a: [{ u: 5, l: 5 }, { u: 282, l: 282 }], l: [{ u: 80, l: 82 }, { u: 3, l: 93 }], w: 500, d: 1000 }] },
     sidelunge: { view: 'front', solid: true, frames: [
       { h: [95, 72], t: 6, a: [[112, 70], [108, 68]], l: [[115, 90], [58, 90]], d: 2000 },
       { h: [96, 73.5], t: 8, a: [[112, 72], [108, 70]], l: [[115, 90], [58, 90]], d: 2000 }] },
@@ -1375,10 +1490,10 @@ const Guide = (() => {
     lunge: { m: 'Cuisses, fessiers, équilibre', k: ['Debout, fais un grand pas en avant.', 'Descends le genou arrière vers le sol, les deux genoux à environ 90°.', 'Genou avant au-dessus de la cheville.', 'Pousse sur le pied avant pour revenir, puis alterne.'], e: ['Genou avant qui part loin devant les orteils.', 'Buste penché en avant.'], easy: 'Pas plus petit et descente moins profonde.', hard: 'Fentes sautées.' },
     revlunge: { m: 'Cuisses, fessiers', k: ['Debout, recule une jambe d\'un grand pas.', 'Descends le genou arrière près du sol, buste droit.', 'Reviens en poussant sur le talon avant, puis alterne.'], e: ['Pieds sur une même ligne : garde un écart de la largeur des hanches.'], easy: 'Tiens-toi d\'une main à un mur.' },
     bridge: { m: 'Fessiers, arrière des cuisses', k: ['Sur le dos, genoux pliés, pieds à plat près des fesses, bras au sol.', 'Pousse dans les talons pour monter le bassin jusqu\'à aligner genoux, hanches et épaules.', 'Serre les fessiers une seconde en haut, redescends lentement.'], e: ['Cambrer le bas du dos au lieu de serrer les fessiers.'], hard: 'Pont sur une jambe.' },
-    bridge1: { m: 'Fessiers, arrière des cuisses', k: ['Position du pont, une jambe tendue dans le prolongement de la cuisse.', 'Monte le bassin sur la jambe d\'appui sans le laisser pencher.', 'Change de jambe à mi-temps.'], e: ['Bassin qui bascule d\'un côté.'], easy: 'Pont sur les deux jambes.' },
+    bridge1: { m: 'Fessiers, arrière des cuisses', k: ['Position du pont, une jambe tendue dans le prolongement de la cuisse.', 'Monte le bassin sur la jambe d\'appui sans le laisser pencher.', 'Fais toutes les répétitions d\'un côté, puis de l\'autre.'], e: ['Bassin qui bascule d\'un côté.'], easy: 'Pont sur les deux jambes.' },
     wallsit: { m: 'Cuisses', k: ['Dos plaqué au mur, descends jusqu\'à ce que les cuisses soient parallèles au sol.', 'Genoux à 90°, au-dessus des chevilles.', 'Tiens la position en respirant normalement.'], e: ['S\'appuyer avec les mains sur les cuisses.', 'Bloquer sa respiration.'], easy: 'Remonte un peu : angle des genoux plus ouvert.' },
     plank: { m: 'Abdominaux profonds, épaules', k: ['Avant-bras au sol, coudes sous les épaules.', 'Corps droit de la tête aux talons, fessiers et abdos serrés.', 'Respire calmement, regard vers le sol.'], e: ['Bassin qui s\'affaisse.', 'Fesses trop hautes.'], easy: 'Genoux au sol.', hard: 'Lève un pied quelques secondes, puis l\'autre.' },
-    sideplank: { m: 'Abdominaux latéraux (obliques), fessiers', k: ['Allongé sur le côté, avant-bras au sol sous l\'épaule, pieds empilés.', 'Monte le bassin pour aligner chevilles, hanches et épaules. L\'autre bras peut monter vers le plafond.', 'Change de côté à mi-temps.'], e: ['Bassin qui tombe vers le sol.'], easy: 'Genou du dessous au sol.' },
+    sideplank: { m: 'Abdominaux latéraux (obliques), fessiers', k: ['Allongé sur le côté, avant-bras au sol sous l\'épaule, pieds empilés.', 'Monte le bassin pour aligner chevilles, hanches et épaules. L\'autre bras peut monter vers le plafond.', 'Tiens le temps indiqué d\'un côté, puis de l\'autre.'], e: ['Bassin qui tombe vers le sol.'], easy: 'Genou du dessous au sol.' },
     superman: { m: 'Muscles du dos, fessiers', k: ['À plat ventre, bras tendus devant toi.', 'Décolle en même temps bras, poitrine et jambes de quelques centimètres.', 'Tiens 2 secondes, redescends.'], e: ['Relever la tête vers le plafond : garde le regard vers le sol.', 'Monter trop haut en forçant sur le bas du dos.'], easy: 'Bras seuls, puis jambes seules.' },
     angels: { m: 'Haut du dos, posture', view: 'vue de dessus', k: ['À plat ventre, front au sol ou sur une serviette.', 'Bras décollés du sol, pouces vers le plafond.', 'Fais glisser les bras des hanches jusqu\'au-dessus de la tête en arc de cercle, puis reviens.'], e: ['Laisser les bras retomber au sol.', 'Hausser les épaules.'] },
     birddog: { m: 'Gainage, dos, fessiers', k: ['À quatre pattes, dos plat comme une table.', 'Tends un bras devant et la jambe opposée derrière, à l\'horizontale.', 'Tiens 2 secondes sans bouger le bassin, reviens, puis alterne.'], e: ['Bassin qui tourne quand la jambe monte.', 'Dos qui se creuse.'] },
@@ -1393,6 +1508,22 @@ const Guide = (() => {
     stchest: { m: 'Pectoraux, épaules', k: ['Avant-bras contre un mur ou un cadre de porte, coude à hauteur d\'épaule.', 'Avance d\'un petit pas et tourne doucement le buste à l\'opposé du bras.', 'Garde l\'épaule basse, loin de l\'oreille.'], e: ['Forcer jusqu\'à la douleur : l\'étirement doit rester agréable.'] },
     cobra: { m: 'Étirement des abdominaux', k: ['À plat ventre, mains sous les épaules.', 'Pousse doucement pour lever la poitrine, bassin au sol.', 'Épaules basses, loin des oreilles. Respire.'], e: ['Forcer sur le bas du dos : monte seulement jusqu\'où c\'est confortable.'], easy: 'Sur les avant-bras (le sphinx).' },
     stglute: { m: 'Fessiers', k: ['Sur le dos, pose une cheville sur le genou opposé.', 'Attrape l\'arrière de la cuisse d\'appui et tire-la vers toi.', 'Garde la tête et les épaules posées au sol.'], easy: 'Pied d\'appui au sol, sans tirer la cuisse.', hard: 'Pigeon : à quatre pattes, ramène un genou devant toi et allonge l\'autre jambe en arrière.' },
+    march: { m: 'Réveil du corps, cœur qui monte doucement',
+      k: ['Debout, marche sur place en levant les genoux à hauteur de hanche.', 'Les bras accompagnent le mouvement, épaules relâchées.', 'Rythme tranquille : tu dois pouvoir parler normalement.'] },
+    hipcircle: { m: 'Mobilité des hanches et du bas du dos', view: 'vue de face',
+      k: ['Debout, pieds largeur de hanches, mains sur les hanches.', 'Dessine de grands cercles avec le bassin, le buste reste au-dessus des pieds.', 'Fais tous les cercles dans un sens, puis dans l\'autre.'] },
+    legswing: { m: 'Mobilité des hanches, arrière et avant des cuisses',
+      k: ['Debout, une main contre un mur ou une chaise pour l\'équilibre.', 'Balance une jambe tendue d\'avant en arrière, de plus en plus haut, sans forcer.', 'Le buste reste droit. Fais toutes les répétitions, puis change de jambe.'],
+      e: ['Lancer la jambe avec un à-coup.'] },
+    goodmorning: { m: 'Arrière des cuisses, bas du dos (échauffement)',
+      k: ['Debout, pieds largeur de hanches, mains croisées sur la poitrine, genoux légèrement fléchis.', 'Recule les fesses et penche le buste en avant, dos bien plat, jusqu\'à sentir l\'arrière des cuisses.', 'Remonte en poussant les hanches vers l\'avant.'],
+      e: ['Arrondir le dos.', 'Descendre trop bas au détriment du dos plat.'] },
+    wallpush: { m: 'Pectoraux, épaules, triceps (activation)',
+      k: ['Face à un mur, mains posées à hauteur d\'épaules, un peu plus larges que les épaules.', 'Recule les pieds pour être incliné, corps gainé de la tête aux talons.', 'Rapproche la poitrine du mur en pliant les coudes, puis repousse.'],
+      easy: 'Pieds plus près du mur.', hard: 'Pieds plus loin du mur.' },
+    deadbug: { m: 'Abdominaux profonds, coordination',
+      k: ['Sur le dos, bras tendus vers le plafond, genoux pliés à 90° au-dessus des hanches.', 'Plaque le bas du dos au sol.', 'Tends lentement un bras derrière la tête et la jambe opposée vers l\'avant, sans toucher le sol, puis reviens et change de côté.'],
+      e: ['Le bas du dos qui se creuse : tends moins loin.'], easy: 'Bouge seulement les jambes, bras immobiles.' },
     sidelunge: { m: 'Adducteurs (intérieur des cuisses)', view: 'vue de face',
       k: ['Pieds très écartés, pointes légèrement ouvertes.', 'Plie une jambe et descends le bassin de ce côté, fesses en arrière, comme pour t\'asseoir.', 'L\'autre jambe reste tendue, pied à plat : tu sens l\'intérieur de la cuisse s\'étirer.', 'Mains sur le genou plié, ou au sol devant toi pour l\'équilibre.'],
       e: ['Genou plié qui rentre vers l\'intérieur : il reste dans l\'axe du pied.', 'Talon de la jambe pliée qui décolle.'],
@@ -1441,7 +1572,7 @@ const Guide = (() => {
   };
   const GROUPS = [
     ['Les deux objectifs', ['pushup', 'knee', 'crunch']],
-    ['Échauffement', ['jj', 'arms', 'twist', 'squatslow', 'catcow', 'scap']],
+    ['Échauffement', ['march', 'jj', 'arms', 'twist', 'legswing', 'hipcircle', 'goodmorning', 'squatslow', 'wallpush', 'catcow', 'scap', 'deadbug']],
     ['Jambes et fessiers', ['squat', 'lunge', 'revlunge', 'wallsit', 'bridge', 'bridge1']],
     ['Dos et gainage', ['plank', 'sideplank', 'birddog', 'superman', 'angels']],
     ['Cardio et mobilité', ['highknees', 'jumpsquat', 'skater', 'burpee', 'climber', 'lungetwist']],
@@ -1661,10 +1792,20 @@ if (typeof module !== 'undefined') module.exports = Guide;
     items.forEach(it => { const lab = A.posLabel(it.id), last = groups[groups.length - 1]; if (last && last.lab === lab) last.items.push(it); else groups.push({ lab, items: [it] }); });
     return groups.map(g => `<span class="pgroup"><b>${esc(g.lab)}</b> : <span class="ilinks">${g.items.map(i => `<button data-act="guide" data-id="${i.id}">${esc(i.name)}</button>${sides && i.uni ? ' (2 côtés)' : ''}`).join(', ')}</span></span>`).join('');
   }
+  function doseShort(it, withSets) {
+    const pre = withSets && it.sets > 1 ? it.sets + ' × ' : '';
+    return pre + (it.mode === 'reps' ? it.target : fmtDur(it.target)) + (it.uni ? ' par côté' : '');
+  }
+  function groupedDose(items) {
+    const groups = [];
+    items.forEach(it => { const lab = A.posLabel(it.id), last = groups[groups.length - 1]; if (last && last.lab === lab) last.items.push(it); else groups.push({ lab, items: [it] }); });
+    return groups.map(g => `<span class="pgroup"><b>${esc(g.lab)}</b> : <span class="ilinks">${g.items.map(i => `<button data-act="guide" data-id="${i.id}">${esc(i.name)}</button> ${esc(doseShort(i, true))}`).join(', ')}</span></span>`).join('');
+  }
   const HOLDWHY = { plus: ' Tu tiens souvent plus longtemps que prévu : repère relevé.', moins: ' Repère abaissé pour l\'instant : tu relâchais souvent avant la fin.' };
   function blockSec(b) {
     if (b.kind === 'intervals') return b.rounds * b.items.reduce((a, it) => a + it.work + it.rest + (b.role === 'warmup' ? 5 : 0), 0);
     if (b.kind === 'stretch') return A.stretchSeconds(b);
+    if (b.kind === 'circuit') return A.circuitSeconds(b);
     if (b.kind === 'flextest') return 150;
     if (b.kind === 'sets') return b.sets.reduce((a, s) => a + (s.isMax ? s.min * 1.3 : s.target) * A.EX[b.ex].spr + s.rest, 0) + (b.restBefore || 0);
     if (b.kind === 'pause') return b.seconds;
@@ -1679,6 +1820,11 @@ if (typeof module !== 'undefined') module.exports = Guide;
         let names = groupedNames(b.items);
         if (b.rounds > 1 && b.alt) names = `<span class="pround">${b.rounds > 2 ? 'Tours 1 et 3' : 'Tour 1'}</span>${groupedNames(b.items)}<span class="pround">Tour 2</span>${groupedNames(b.alt)}`;
         return `<li><span class="what">${esc(what)}</span><span class="dur">${fmtMin(blockSec(b))}</span><span class="detail">${names}<span class="pgroup">${tail}</span></span></li>`;
+      }
+      if (b.kind === 'circuit') {
+        const mod = b.role === 'module', it0 = b.items[0];
+        const tail = mod ? `${it0.sets > 1 ? `${it0.sets} séries par exercice, ${it0.rest} s de repos entre deux. ` : ''}${b.transition} s pour préparer l'exercice suivant. Rythme modéré : tu dois pouvoir dire quelques mots.` : 'À ton rythme. Les exercices chronométrés démarrent quand tu appuies sur Go.';
+        return `<li><span class="what">${esc(b.title)}</span><span class="dur">${fmtMin(blockSec(b))}</span><span class="detail">${groupedDose(b.items)}<span class="pgroup">${tail}</span></span></li>`;
       }
       if (b.kind === 'stretch') {
         const txt = `Repère : ${b.hold} s par position${b.items.some(i => i.uni) ? ' et par côté' : ''}. Le chrono sonne mais ne passe jamais tout seul.${HOLDWHY[b.why] || ''}`;
@@ -2133,8 +2279,7 @@ if (typeof module !== 'undefined') module.exports = Guide;
         <div class="setting"><span>Bips</span>${sw('sound', st.sound)}</div>
         <div class="setting"><span>Vibrations</span>${sw('vibrate', st.vibrate)}</div>
         <div class="setting"><span class="grow">Pompes légères les jours d'abdos<br><span class="xs muted">2 petites séries faciles. Désactive pour un repos complet des bras.</span></span>${sw('pushRappel', st.pushRappel !== false)}</div>
-        <div class="setting"><span class="grow">Bouton Go avant chaque exercice<br><span class="xs muted">Les étirements et le premier exercice du circuit attendent toujours ton Go. Partout : aussi chaque exercice du circuit.</span></span>${seg('waitGo', [['warm', 'Échauffement'], ['all', 'Partout']], st.waitGo || 'warm')}</div>
-        <div class="setting"><span class="grow">Durée par exercice du circuit<br><span class="xs muted">Chaque exercice une seule fois, en continu.</span></span>${seg('modWork', [[60, '1 min'], [90, '1 min 30'], [120, '2 min']], st.modWork || 90)}</div>
+        <div class="setting"><span class="grow">Séries par exercice du circuit<br><span class="xs muted">Le nombre de répétitions s'adapte à tes réponses après chaque séance.</span></span>${seg('csets', [[1, '1'], [2, '2'], [3, '3']], st.csets || 2)}</div>
         <div class="setting"><span class="grow">Durée des étirements<br><span class="xs muted">Auto : de 30 s à 60 s au fil des cycles, ajustée selon ce que tu tiens vraiment.</span></span>${seg('flexHold', [['auto', 'Auto'], [30, '30 s'], [45, '45 s'], [60, '60 s']], st.flexHold || 'auto')}</div>
         <div class="setting"><span class="grow">Rythme des crunchs<br><span class="xs muted">Secondes par répétition en mode cadence</span></span>${seg('cadence', [[1.4, '1,4'], [1.6, '1,6'], [1.8, '1,8'], [2, '2']], st.cadence)}</div>
       </div>
@@ -2175,6 +2320,7 @@ if (typeof module !== 'undefined') module.exports = Guide;
     return sheetHead('La méthode') + `<div class="prose" style="padding-bottom:12px">
       <p>Aube applique des principes simples et reconnus de l'entraînement en endurance musculaire. Voici comment le programme est construit, et pourquoi.</p>
       <h3>Le rythme de la semaine</h3>
+      <p>La première semaine compte déjà : chaque séance finit par une série au maximum, qui recale tout de suite le programme si ton test t'a sous-estimé. Après chaque séance, la question sur les pompes ou les crunchs ne règle que cet exercice, et celle sur le circuit ne règle que le circuit.</p>
       <p>Les grosses séances de pompes tombent les lundis, mercredis et vendredis, celles de crunchs les mardis, jeudis et samedis, comme dans les programmes de type « 100 pompes en 6 semaines ». Les crunchs continuent les autres jours en version modérée.</p>
       <h3>La récupération</h3>
       <p>Un muscle progresse pendant qu'il récupère. L'ACSM recommande au moins 48 heures entre deux séances qui sollicitent fortement les mêmes muscles. Les grosses séances de pompes (lundi, mercredi, vendredi) sont donc toujours séparées de 48 heures, et de 72 heures du vendredi au lundi. Les jours d'abdos, deux petites séries très faciles entretiennent le geste sans gêner la récupération ; tu peux les désactiver dans les réglages. Les abdos travaillent tous les jours, mais en alternant jours durs et jours modérés. Le dimanche, repos complet.</p>
@@ -2188,8 +2334,12 @@ if (typeof module !== 'undefined') module.exports = Guide;
       <p>Trois semaines de charge croissante, puis une semaine allégée à 60 % qui laisse le corps assimiler. Le test du samedi recale ton niveau sur la réalité.</p>
       <h3>La durée des séances</h3>
       <p>Aube est ton seul sport. L'OMS recommande aux adultes 150 à 300 minutes d'activité modérée par semaine et du renforcement de tous les grands groupes musculaires au moins deux jours par semaine. Une séance dure environ 25 minutes au début et s'allonge à mesure que tes séries grandissent : six séances couvrent ce minimum, avec jambes, dos, cardio et souplesse pour équilibrer les pompes et les crunchs.</p>
+      <h3>L'échauffement</h3>
+      <p>Six versions tournent : trois pour les jours de pompes (épaules, poignets, haut du dos), trois pour les jours de crunchs (hanches, bassin, abdominaux profonds). Chacune commence par de la marche sur place pour monter doucement en température, et finit au sol, prête pour la suite.</p>
       <h3>Le circuit</h3>
-      <p>Cinq exercices de jambes, de dos, de gainage ou de cardio, chacun une seule fois et en continu (1 min 30 par défaut). Les 30 secondes entre deux servent à te préparer : l'écran montre déjà l'exercice suivant. Deux séries d'exercices alternent d'une semaine sur l'autre pour varier.</p>
+      <p>Cinq exercices de jambes, de dos, de gainage ou de cardio, en nombre de répétitions à faire à ton rythme : personne ne t'impose une cadence. Seules les positions tenues (planche, gainage latéral, chaise) sont chronométrées. Deux séries par exercice par défaut, 30 secondes de repos entre deux, puis 40 secondes pour préparer l'exercice suivant, dont l'écran montre déjà la fiche.</p>
+      <p>Les doses de départ sont volontairement prudentes. Après chaque séance, une deuxième question porte sur le circuit seul : facile, il monte de deux crans (environ 15 % de répétitions en plus) ; juste bien, d'un cran ; trop dur, il baisse nettement. Le cardio (jumping jacks, montées de genoux, burpees…) a son propre niveau, séparé du renforcement, parce que l'endurance progresse à un autre rythme que la force.</p>
+      <p>L'intensité doit rester modérée : tu dois pouvoir dire quelques mots en faisant l'effort. Une nausée est le signe d'un effort trop intense pour ton niveau du moment. Pour l'éviter : pas de repas copieux dans l'heure qui précède, un verre d'eau avant de commencer, et ralentis dès que tu te sens mal.</p>
       <h3>La souplesse</h3>
       <p>Chaque séance se termine par 5 à 9 minutes d'étirements statiques, quand les muscles sont chauds. Trois thèmes reviennent deux fois par semaine : hanches et adducteurs (lundi, jeudi), ischios et mollets (mardi, vendredi), hanches, cuisses et fessiers (mercredi, samedi), plus les pectoraux après les pompes et le cobra après les crunchs. Le dimanche, une séance douce facultative reprend tout le corps.</p>
       <p>Une revue de 2018 montre que c'est le temps total d'étirement par semaine qui fait progresser, avec au moins 5 séances par semaine. L'ACSM conseille de tenir chaque position jusqu'à une tension légère, sans douleur, et de cumuler environ 60 secondes par exercice. Aube commence à 30 secondes par position et par côté, puis monte jusqu'à 60 secondes au fil des cycles. Si tu tiens souvent plus longtemps que prévu, le repère monte plus vite.</p>
@@ -2213,9 +2363,10 @@ if (typeof module !== 'undefined') module.exports = Guide;
         <li>Mazéas A. et coll., Evaluating the effectiveness of gamification on physical activity, Journal of Medical Internet Research, 2022.</li>
         <li>McGill S., Low Back Disorders, Human Kinetics.</li>
         <li>Thomas E. et coll., The relation between stretching typology and stretching duration: the effects on range of motion, International Journal of Sports Medicine, 2018.</li>
+        <li>ACSM, Progression models in resistance training : 1 à 3 séries de 8 à 12 répétitions pour débuter.</li>
         <li>Behm D. et coll., Acute effects of muscle stretching on physical performance, range of motion, and injury incidence, Applied Physiology, Nutrition, and Metabolism, 2016.</li>
       </ul>
-      <p class="small muted">Aube ne remplace pas un avis médical. Une douleur vive, une gêne dans la poitrine ou un essoufflement inhabituel : arrête et consulte.</p></div>`;
+      <p class="small muted">Aube ne remplace pas un avis médical. Une douleur vive, une gêne dans la poitrine, un essoufflement inhabituel ou des nausées à chaque séance : arrête et consulte.</p></div>`;
   }
   function badgeSheet(id) {
     const b = A.BADGES.find(x => x.id === id); if (!b) return;
@@ -2281,6 +2432,15 @@ if (typeof module !== 'undefined') module.exports = Guide;
           steps.push({ t: 'set', b, bi, s, si });
           if (s.rest > 0) { const n = b.sets[si + 1]; steps.push({ t: 'rest', b, bi, sec: s.rest, nextId: b.ex, next: n ? (n.isMax ? 'Série au maximum' : n.target + ' ' + A.EX[b.ex].unit) : '' }); }
         });
+      } else if (b.kind === 'circuit') {
+        steps.push({ t: 'intro', b, bi });
+        b.items.forEach((it, j) => {
+          for (let k = 0; k < it.sets; k++) {
+            (it.mode !== 'reps' && it.uni ? [1, 2] : [0]).forEach(side => steps.push({ t: 'cset', b, bi, it, j, k, side, of: b.items.length }));
+            if (k < it.sets - 1) steps.push({ t: 'rest', b, bi, sec: it.rest, next: `Série ${k + 2} sur ${it.sets} : ${doseShort(it, false)}`, nextId: it.id });
+            else if (j < b.items.length - 1 && b.transition) { const nx = b.items[j + 1]; steps.push({ t: 'rest', b, bi, sec: b.transition, next: nx.name, nextId: nx.id, nextIt: nx, nextN: j + 1, of: b.items.length }); }
+          }
+        });
       } else if (b.kind === 'stretch') {
         steps.push({ t: 'intro', b, bi });
         b.items.forEach((it, ii) => steps.push({ t: 'stretch', b, bi, it, ii }));
@@ -2303,7 +2463,7 @@ if (typeof module !== 'undefined') module.exports = Guide;
     try {
       const steps = P.steps.map(st => { const o = Object.assign({}, st); delete o.b; return o; });
       const sub = P.sub && P.sub.mode === 'stretch' ? { mode: 'stretch', phase: 'prep', side: P.sub.side } : null;
-      localStorage.setItem(RUNKEY, JSON.stringify({ v: 1, date: P.plan.date, savedAt: Date.now(), plan: P.plan, steps, i: P.i, log: P.log, startedAt: P.startedAt, t0: P.t0, feeling: P.feeling, pain: P.pain, kneeAdded: !!P.kneeAdded, sub }));
+      localStorage.setItem(RUNKEY, JSON.stringify({ v: 1, date: P.plan.date, savedAt: Date.now(), plan: P.plan, steps, i: P.i, log: P.log, startedAt: P.startedAt, t0: P.t0, feeling: P.feeling, cfeel: P.cfeel, pain: P.pain, kneeAdded: !!P.kneeAdded, sub }));
     } catch (e) { /* stockage plein ou indisponible */ }
   }
   function clearRun() { try { localStorage.removeItem(RUNKEY); } catch (e) { /* rien */ } }
@@ -2314,7 +2474,8 @@ if (typeof module !== 'undefined') module.exports = Guide;
     let i = Math.min(r.i, steps.length - 1);
     // un chrono interrompu repart de son écran Go, ou du début de l'exercice
     if (steps[i] && steps[i].t === 'work' && steps[i - 1] && steps[i - 1].t === 'ready') i--;
-    P = { plan, steps, i, log: r.log, startedAt: r.startedAt, t0: r.t0, timer: null, endAt: 0, paused: false, remain: 0, sub: r.sub, feeling: r.feeling || 0, pain: !!r.pain, kneeAdded: !!r.kneeAdded };
+    if (!r.log.circuit) r.log.circuit = [];
+    P = { plan, steps, i, log: r.log, startedAt: r.startedAt, t0: r.t0, timer: null, endAt: 0, paused: false, remain: 0, sub: r.sub, feeling: r.feeling || 0, cfeel: r.cfeel || 0, pain: !!r.pain, kneeAdded: !!r.kneeAdded };
     $('#player').hidden = false; document.body.style.overflow = 'hidden';
     wakeOn();
     showStep();
@@ -2322,7 +2483,7 @@ if (typeof module !== 'undefined') module.exports = Guide;
   function startSession(plan) {
     audio();
     try { if (navigator.storage && navigator.storage.persist) navigator.storage.persist().then(v => { window.__aubePersisted = v; }); } catch (e) { /* rien */ }
-    P = { plan, steps: buildSteps(plan), i: 0, log: { sets: [], intervals: 0, tests: {}, stretch: [], flex: {} }, startedAt: new Date().toISOString(), t0: Date.now(), timer: null, endAt: 0, paused: false, remain: 0, sub: null, feeling: 0, pain: false, confirm: false };
+    P = { plan, steps: buildSteps(plan), i: 0, log: { sets: [], intervals: 0, tests: {}, stretch: [], flex: {}, circuit: [] }, startedAt: new Date().toISOString(), t0: Date.now(), timer: null, endAt: 0, paused: false, remain: 0, sub: null, feeling: 0, pain: false, confirm: false };
     $('#player').hidden = false; document.body.style.overflow = 'hidden';
     wakeOn();
     showStep();
@@ -2365,6 +2526,7 @@ if (typeof module !== 'undefined') module.exports = Guide;
     if (s.t === 'intro') return stepIntro(s);
     if (s.t === 'work' || s.t === 'rest') { P.paused = false; P.endAt = Date.now() + s.sec * 1000; return stepTimed(s, s.t === 'rest'); }
     if (s.t === 'round') return stepRound(s);
+    if (s.t === 'cset') return stepCset(s);
     if (s.t === 'ready') return stepReady(s);
     if (s.t === 'stretch') return stepStretch(s);
     if (s.t === 'flextest') return stepFlex(s);
@@ -2375,7 +2537,12 @@ if (typeof module !== 'undefined') module.exports = Guide;
   function stepIntro(s) {
     const b = s.b;
     let body, sub = '';
-    if (b.kind === 'stretch') {
+    if (b.kind === 'circuit') {
+      const mod = b.role === 'module', it0 = b.items[0];
+      body = `<span class="pname">${esc(b.title)}</span><p class="phow">${mod ? `${b.items.length} exercices, ${it0.sets > 1 ? it0.sets + ' séries chacun' : 'une série chacun'}. Fais les répétitions à ton rythme, puis appuie sur « C'est fait ». Rythme modéré : tu dois pouvoir dire quelques mots. Nausée, vertige ou douleur : arrête-toi.` : 'On commence doucement. Fais les répétitions à ton rythme ; les exercices chronométrés démarrent quand tu appuies sur Go.'}</p>
+        <ul class="result-list">${b.items.map(it => `<li><span><b>${esc(it.name)}</b></span>${guideLink(it.id, 'Voir')}<span class="detail">${esc(A.posLabel(it.id))}, ${esc(doseShort(it, true))}${it.note && !it.uni ? ' (' + esc(it.note) + ')' : ''}</span></li>`).join('')}</ul>`;
+      say(b.title);
+    } else if (b.kind === 'stretch') {
       const uni = b.items.some(i => i.uni);
       body = `<span class="pname">${esc(b.title)}</span><p class="phow">${b.items.length} positions, repère de ${b.hold} s${uni ? ' par côté' : ''}. Chaque position attend ton Go. Le chrono sonne quand le temps visé est atteint, puis continue : c'est toi qui passes à la suite.</p>
         <ul class="result-list">${b.items.map(it => `<li><span><b>${esc(it.name)}</b></span>${guideLink(it.id, 'Voir')}<span class="detail">${esc(A.posLabel(it.id))}${it.uni ? ', les deux côtés' : ''}</span></li>`).join('')}</ul>`;
@@ -2424,7 +2591,7 @@ if (typeof module !== 'undefined') module.exports = Guide;
       const nx = s.nextIt;
       const nextCard = nx ? `<div class="nextcard"><span class="small">Prépare-toi pour l'exercice ${s.nextN + 1} sur ${s.of}</span><span class="pname">${esc(nx.name)}</span>
            ${Guide.svg(nx.id, { anim: true, cls: 'pfig-s' })}
-           <div class="row" style="justify-content:center;flex-wrap:wrap;gap:6px"><span class="chip">${esc(A.posLabel(nx.id))}</span><span class="chip sun">${fmtDur(nx.work)}</span></div>
+           <div class="row" style="justify-content:center;flex-wrap:wrap;gap:6px"><span class="chip">${esc(A.posLabel(nx.id))}</span><span class="chip sun">${nx.work ? fmtDur(nx.work) : esc(doseShort(nx, true))}</span></div>
            <p class="phow">${esc(nx.how)} ${guideLink(nx.id, 'Détails')}</p></div>`
         : `${s.next ? `<p class="phow">Ensuite : <b>${esc(s.next)}</b></p>` : ''}${s.nextId && Guide.FIGS[s.nextId] ? Guide.svg(s.nextId, { anim: true, cls: 'pfig-s' }) : ''}`;
       chrome(s.b ? (s.b.kind === 'pause' ? s.b.title : 'Repos') : 'Repos', s.next ? 'Ensuite : ' + s.next : '',
@@ -2432,7 +2599,7 @@ if (typeof module !== 'undefined') module.exports = Guide;
          <div class="ring${nx ? ' small' : ''}"><svg viewBox="0 0 100 100"><circle class="track" cx="50" cy="50" r="46"/><circle id="t-arc" class="arc" cx="50" cy="50" r="46" stroke-dasharray="${circ}" stroke-dashoffset="0"/></svg><span id="t-num" class="num">${s.sec}</span></div>
          ${nextCard}${s.note ? `<p class="phow">${esc(s.note)}</p>` : ''}`,
         `<div class="row"><button class="btn btn-ghost grow" style="color:inherit;border-color:rgba(255,255,255,.25)" data-act="p-add15">+15 s</button><button class="btn btn-sun grow" data-act="p-next">${nx ? 'Je suis prêt' : 'Passer le repos'}</button></div>`, true);
-      if (!P.paused && P.lastRestSay !== P.i) { P.lastRestSay = P.i; say(nx ? `Prépare-toi. Ensuite, ${nx.name}, ${fmtDur(nx.work).replace(' min ', ' minute ')}.` : `Repos, ${s.sec} secondes.${s.next ? ' Ensuite, ' + s.next + '.' : ''}`); }
+      if (!P.paused && P.lastRestSay !== P.i) { P.lastRestSay = P.i; say(nx ? `Prépare-toi. Ensuite, ${nx.name}.` : `Repos, ${s.sec} secondes.${s.next ? ' Ensuite, ' + s.next + '.' : ''}`); }
     } else {
       const it = s.it, isMod = s.b.role === 'module';
       const subt = s.b.rounds > 1 ? `Tour ${s.r + 1} sur ${s.b.rounds}` : (s.of ? `Exercice ${s.n + 1} sur ${s.of}` : '');
@@ -2456,6 +2623,54 @@ if (typeof module !== 'undefined') module.exports = Guide;
       if (c > 0) { const e = $('#cd'); if (e) e.textContent = c; beep(660, .1); }
       else { clearInterval(P.timer); beep(1175, .2); buzz(80); done(); }
     }, FAST ? 60 : 1000);
+  }
+  function stepCset(s) {
+    const it = s.it, b = s.b;
+    const bits = [`Exercice ${s.j + 1} sur ${s.of}`];
+    if (it.sets > 1) bits.push(`série ${s.k + 1} sur ${it.sets}`);
+    if (s.side) bits.push(s.side === 1 ? 'premier côté' : 'deuxième côté');
+    const subt = bits.join(', ');
+    if (it.mode === 'reps') {
+      if (P.sub && P.sub.mode === 'entry') {
+        const v = P.sub.value;
+        chrome(b.title, subt, `<span class="pname">Combien en as-tu fait ?</span>
+          <div class="stepper"><button data-act="p-adj" data-d="-5">−5</button><button data-act="p-adj" data-d="-1">−1</button><span class="num" id="entry-num">${v}</span><button data-act="p-adj" data-d="1">+1</button><button data-act="p-adj" data-d="5">+5</button></div>
+          <p class="phow">Objectif : ${it.target}${it.uni ? ' par côté' : ''}. Note ce que tu as fait proprement : le circuit s'adapte.</p>`,
+          `<button class="btn btn-sun btn-block" data-act="p-validate">Valider <span id="entry-btn">${v}</span></button>`);
+        return;
+      }
+      chrome(b.title, subt, `${Guide.svg(it.id, { anim: true, cls: 'pfig-s' })}<span class="pname">${esc(it.name)}</span><span class="giant mid">${it.target}</span>
+        <p class="phow"><b>${esc(it.note || (it.uni ? 'par côté' : 'répétitions, à ton rythme'))}</b></p><p class="phow">${esc(it.how)} ${guideLink(it.id, 'Détails')}</p>`,
+        `<button class="btn btn-sun btn-block" data-act="p-done">C'est fait</button><button class="btn btn-ghost btn-block btn-s" data-act="p-entry">J'en ai fait moins</button>`);
+      if (P.lastSay !== P.i) { P.lastSay = P.i; say(`${it.name}. ${it.target}${it.uni ? ' par côté' : ''}.`); }
+      return;
+    }
+    if (!P.sub || P.sub.mode !== 'hold') P.sub = { mode: 'hold', phase: 'prep' };
+    const sub = P.sub;
+    if (sub.phase === 'prep') {
+      chrome(b.title, subt, `<span class="pname">${esc(it.name)}</span>${Guide.svg(it.id, { anim: true, cls: 'pfig' })}
+        <div class="row" style="justify-content:center;flex-wrap:wrap;gap:6px"><span class="chip">${esc(A.posLabel(it.id))}</span><span class="chip sun">${fmtDur(it.target)}</span>${s.side ? `<span class="chip">${s.side === 1 ? 'Premier côté' : 'Deuxième côté'}</span>` : ''}</div>
+        <p class="phow">${s.side === 2 ? 'Change de côté et installe-toi, puis appuie sur Go.' : esc(it.how)} ${guideLink(it.id, 'Détails')}</p>`,
+        `<button class="btn btn-sun btn-block btn-go" data-act="p-go">Go</button>${b.role === 'warmup' ? '<button class="link" data-act="p-cskip">Passer cet exercice</button>' : ''}`);
+      if (P.lastSay !== P.i) { P.lastSay = P.i; say(s.side === 2 ? 'Deuxième côté.' : it.name); }
+      return;
+    }
+    chrome(b.title, subt, `<span class="pname">${esc(it.name)}</span>${Guide.svg(it.id, { anim: true, cls: 'pfig' })}<span id="t-num" class="giant mid">${it.target}</span><div class="tbar"><i id="t-bar" style="width:0%"></i></div>
+      <p class="phow">${it.mode === 'hold' ? 'Tiens la position et respire. Si tu lâches avant, appuie sur le bouton : le circuit s\'adapte.' : esc(it.how)}</p>`,
+      `<button class="btn btn-quiet btn-block" data-act="p-cstop">${it.mode === 'hold' ? 'J\'ai lâché' : 'Terminer'}</button>`);
+    const draw = () => {
+      const el = (Date.now() - sub.start) / 1000, left = it.target - el, secs = Math.ceil(Math.max(0, left));
+      const num = $('#t-num'); if (num) num.textContent = secs;
+      const bar = $('#t-bar'); if (bar) bar.style.width = Math.min(100, el / it.target * 100).toFixed(1) + '%';
+      if (secs <= 3 && secs > 0 && secs !== sub.lastBeep) { sub.lastBeep = secs; beep(880, .09); }
+      if (left <= 0) { clearInterval(P.timer); beep(1175, .28); buzz(120); recordCset(s, it.target); }
+    };
+    draw(); P.timer = setInterval(draw, 200);
+  }
+  function recordCset(s, done) {
+    P.log.circuit.push({ id: s.it.id, role: s.b.role, cat: s.it.cat, mode: s.it.mode, target: s.it.target, done: Math.max(0, Math.round(done)), side: s.side || 0 });
+    buzz(30);
+    next();
   }
   function stepRound(s) {
     const b = s.b, list = roundList(b, s.r), fresh = list !== b.items;
@@ -2647,17 +2862,24 @@ if (typeof module !== 'undefined') module.exports = Guide;
     } else if (s.t === 'flextest') {
       P.log.flex[s.key] = done;
       next();
+    } else if (s.t === 'cset') {
+      recordCset(s, done);
     }
   }
 
   /* ---------- Fin de séance ---------- */
+  const hasCircuit = () => P.log.circuit.some(x => x.role === 'module');
   function stepFeeling() {
     const opts = [[1, 'Facile', 'J\'avais de la marge'], [2, 'Juste bien', 'Exigeant mais propre'], [3, 'Dur', 'Les dernières ont piqué'], [4, 'Trop dur', 'Je n\'ai pas tenu']];
-    chrome('Comment c\'était ?', 'Ta réponse règle la prochaine séance',
-      `<span class="pname">Comment c'était ?</span><div class="choice">${opts.map(([v, l, d]) => `<button data-act="p-feel" data-v="${v}" aria-pressed="${P.feeling === v}">${l}<small>${d}</small></button>`).join('')}</div>
+    const copts = [[1, 'Facile', 'J\'aurais pu en faire plus'], [2, 'Juste bien', 'Essoufflé mais à l\'aise'], [3, 'Dur', 'J\'ai dû ralentir'], [4, 'Trop dur', 'Nausée, vertige ou arrêt']];
+    const group = (act, val, title, list) => `<div class="stack" style="gap:8px;width:min(100%,420px)"><b>${title}</b><div class="choice" style="width:100%">${list.map(([v, l, d]) => `<button data-act="${act}" data-v="${v}" aria-pressed="${val === v}">${l}<small>${d}</small></button>`).join('')}</div></div>`;
+    const hc = hasCircuit(), ready = P.feeling && (!hc || P.cfeel);
+    const mainName = A.EX[P.plan.ex] ? A.EX[P.plan.ex].name.toLowerCase() : 'séries';
+    chrome('Comment c\'était ?', 'Tes réponses règlent la prochaine séance',
+      `<span class="pname">Comment c'était ?</span>${group('p-feel', P.feeling, 'Les ' + mainName, opts)}${hc ? group('p-cfeel', P.cfeel, 'Le circuit', copts) : ''}
        <label class="check"><input type="checkbox" id="pain" ${P.pain ? 'checked' : ''}>J'ai ressenti une douleur (articulation, dos, poitrine)</label>`,
-      `<button class="btn btn-sun btn-block" data-act="p-finish" ${P.feeling ? '' : 'disabled style="opacity:.45"'}>Terminer la séance</button>`);
-    say('Séance terminée. Comment c\'était ?');
+      `<button class="btn btn-sun btn-block" data-act="p-finish" ${ready ? '' : 'disabled style="opacity:.45"'}>Terminer la séance</button>`);
+    if (!P.feelSaid) { P.feelSaid = true; say('Séance terminée. Comment c\'était ?'); }
   }
   function finish() {
     clearInterval(P.timer);
@@ -2669,7 +2891,7 @@ if (typeof module !== 'undefined') module.exports = Guide;
       return showFlexResults(r.summary);
     }
     const before = A.playerLevel(A.totalXp(S));
-    const log = { date: k, startedAt: P.startedAt, completedAt: new Date().toISOString(), durSec: Math.round((Date.now() - P.t0) / 1000), feeling: P.feeling || 2, pain: P.pain, light: !!P.plan.light, sets: P.log.sets, intervals: P.log.intervals, tests: P.plan.kind === 'test' ? P.log.tests : null, stretch: P.log.stretch, flex: P.log.flex };
+    const log = { date: k, startedAt: P.startedAt, completedAt: new Date().toISOString(), durSec: Math.round((Date.now() - P.t0) / 1000), feeling: P.feeling || 2, pain: P.pain, light: !!P.plan.light, sets: P.log.sets, intervals: P.log.intervals, tests: P.plan.kind === 'test' ? P.log.tests : null, stretch: P.log.stretch, flex: P.log.flex, circuit: P.log.circuit, cfeel: P.cfeel || null };
     const r = A.applySession(S, P.plan, log);
     S = r.state; save();
     const after = A.playerLevel(A.totalXp(S));
@@ -2697,6 +2919,10 @@ if (typeof module !== 'undefined') module.exports = Guide;
     chime(); if (sum && sum.badges.length) setTimeout(confetti, 250);
     wakeOff();
   }
+  const CWHY = {
+    saut: 'Facile : le circuit monte de deux crans.', monte: 'Le circuit monte d\'un cran.', consolide: 'Dur : même dose la prochaine fois.',
+    recul: 'Trop dur : le circuit baisse nettement. Va à ton rythme, quitte à ralentir.', douleur: 'Douleur signalée : le circuit baisse de deux crans.', stable: 'Séance allégée : même dose la prochaine fois.'
+  };
   const WHY = {
     monte: 'Toutes les séries réussies. La prochaine séance monte d\'un cran.',
     saut: 'Trop facile pour toi : on saute un niveau.',
@@ -2716,6 +2942,11 @@ if (typeof module !== 'undefined') module.exports = Guide;
         items.push(`<li><b>Pompes</b><span class="num" style="font-size:1.6rem${prP ? ';color:var(--sun-ink)' : ''}">${c.pushup}</span><span class="detail">${c.knee ? `Sur les genoux : ${c.knee}. Le programme commence par des pompes sur les genoux.` : (prP ? 'Nouveau record ! ' : '') + 'Le programme repart de ce résultat.' + sgn(dp)}</span></li>`);
         items.push(`<li><b>Crunchs</b><span class="num" style="font-size:1.6rem${prC ? ';color:var(--sun-ink)' : ''}">${c.crunch}</span><span class="detail">${(prC ? 'Nouveau record ! ' : '') + 'Le programme repart de ce résultat.' + sgn(dc)}</span></li>`);
       } else {
+        if (c.kind === 'circuit') {
+          const pct = Math.round((Math.pow(1.07, c.to - c.from) - 1) * 100);
+          items.push(`<li><b>${c.cat === 'cardio' ? 'Cardio' : 'Circuit'}</b><span class="num" style="font-size:1.6rem">${pct > 0 ? '+' + pct + ' %' : pct < 0 ? pct + ' %' : '='}</span><span class="detail">${esc(CWHY[c.why] || '')}</span></li>`);
+          return;
+        }
         items.push(`<li><b>${esc(A.EX[c.ex].name)}</b><span class="num" style="font-size:1.6rem">${c.to > c.from ? 'niv. ' + c.from + ' → ' + c.to : 'niv. ' + c.to}</span><span class="detail">${esc(WHY[c.why] || '')}</span></li>`);
       }
     });
@@ -2771,7 +3002,7 @@ if (typeof module !== 'undefined') module.exports = Guide;
       case 'install': if (installEvt) { installEvt.prompt(); installEvt.userChoice.finally(() => { installEvt = null; render(); }); } break;
       case 'set': {
         const k = t.dataset.k, v = t.dataset.v;
-        S.settings[k] = k === 'cadence' ? parseFloat(v) : k === 'modWork' ? parseInt(v, 10) : (k === 'flexHold' && v !== 'auto') ? parseInt(v, 10) : v; save(); applyTheme();
+        S.settings[k] = k === 'cadence' ? parseFloat(v) : k === 'csets' ? parseInt(v, 10) : (k === 'flexHold' && v !== 'auto') ? parseInt(v, 10) : v; save(); applyTheme();
         t.parentElement.querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', String(b === t)));
         break;
       }
@@ -2795,6 +3026,7 @@ if (typeof module !== 'undefined') module.exports = Guide;
       case 'p-go': {
         const s = cur();
         if (s.t === 'ready') countdown(s.b.title, s.it.name, s.it.id, () => next());
+        else if (s.t === 'cset') countdown(s.b.title, s.it.name, s.it.id, () => { P.sub.phase = 'run'; P.sub.start = Date.now(); P.sub.lastBeep = null; stepCset(s); });
         else if (s.t === 'stretch') countdown(s.b.title, s.it.name, s.it.id, () => { P.sub.phase = 'hold'; P.sub.start = Date.now(); P.sub.reached = false; P.sub.lastBeep = null; stepStretch(s); });
         break;
       }
@@ -2813,13 +3045,16 @@ if (typeof module !== 'undefined') module.exports = Guide;
         break;
       }
       case 'p-add15': P.endAt += 15000; cur().sec += 15; break;
-      case 'p-done': recordSet(cur(), cur().s.target); break;
+      case 'p-done': { const s = cur(); if (s.t === 'cset') recordCset(s, s.it.target); else recordSet(s, s.s.target); break; }
+      case 'p-cstop': { const s = cur(); clearInterval(P.timer); recordCset(s, Math.min(s.it.target, (Date.now() - P.sub.start) / 1000)); break; }
+      case 'p-cskip': next(); break;
       case 'p-count': openCounter(); break;
-      case 'p-entry': { const s = cur(); P.sub = { mode: 'entry', value: s.t === 'set' ? (s.s.isMax ? s.s.min : Math.max(0, s.s.target - 1)) : 0 }; showStep(); break; }
+      case 'p-entry': { const s = cur(); P.sub = { mode: 'entry', value: s.t === 'set' ? (s.s.isMax ? s.s.min : Math.max(0, s.s.target - 1)) : s.t === 'cset' ? Math.max(0, s.it.target - 1) : 0 }; s.t === 'cset' ? stepCset(s) : showStep(); break; }
       case 'p-adj': { P.sub.value = Math.max(0, P.sub.value + parseInt(t.dataset.d, 10)); const n = $('#entry-num'); if (n) n.textContent = P.sub.value; const b = $('#entry-btn'); if (b) b.textContent = P.sub.value; break; }
       case 'p-validate': { const v = P.sub.value; P.sub = null; recordSet(cur(), v); break; }
       case 'p-feel': P.feeling = parseInt(t.dataset.v, 10); P.pain = !!($('#pain') || {}).checked; stepFeeling(); break;
-      case 'p-finish': if (P.feeling) { P.pain = !!($('#pain') || {}).checked; finish(); } break;
+      case 'p-cfeel': P.cfeel = parseInt(t.dataset.v, 10); P.pain = !!($('#pain') || {}).checked; stepFeeling(); break;
+      case 'p-finish': if (P.feeling && (!hasCircuit() || P.cfeel)) { P.pain = !!($('#pain') || {}).checked; finish(); } break;
       case 'p-close': closePlayer(); break;
     }
   });
