@@ -411,7 +411,7 @@ body:has(#player:not([hidden])) #toast { top: calc(72px + env(safe-area-inset-to
 <canvas id="confetti" hidden></canvas>
 <div id="toast" hidden role="status" aria-live="polite"></div>
 <noscript><p style="padding:24px">Aube a besoin de JavaScript pour fonctionner.</p></noscript>
-<script>window.AUBE_VERSION = '1.4.0';
+<script>window.AUBE_VERSION = '1.4.1';
 /* ==========================================================================
    AUBE · moteur de programme (pur, sans DOM)
    Toute la logique d'entraînement, d'adaptation et de récompense vit ici.
@@ -1006,9 +1006,9 @@ const Aube = (() => {
     pull: { name: 'Tiraillement au milieu du dos', short: 'Sensation de 0 à 10', fig: 'rolldown', better: 'down', def: 5, unit: '/10', max: 10,
       how: 'Debout, rentre le menton puis enroule doucement les épaules, comme au début de la flexion. Arrête-toi au premier tiraillement et note sa force : 0 = rien, 10 = très fort.' },
     toesRelax: { name: 'Flexion avant, tête relâchée', short: 'Doigts-sol, tête relâchée', fig: 'standfold', better: 'down', def: 22, unit: 'cm',
-      how: 'Debout, pieds joints, genoux tendus sans les bloquer. Penche-toi lentement en laissant la tête pendre librement. Mesure la distance entre le bout de tes doigts et le sol (0 si tu touches).' },
+      how: 'Debout, pieds joints, jambes tendues sans pousser les genoux vers l\'arrière (pas fléchis non plus : garde la même position à chaque mesure). Penche-toi lentement en laissant la tête pendre librement. Mesure la distance entre le bout de tes doigts et le sol (0 si tu touches).' },
     toesTuck: { name: 'Flexion avant, menton rentré', short: 'Doigts-sol, menton rentré', fig: 'rolldown', better: 'down', def: 25, unit: 'cm',
-      how: 'Pareil, mais en gardant le menton rentré vers la poitrine. Arrête-toi au premier tiraillement net, sans forcer, et mesure la distance doigts-sol.' }
+      how: 'Pareil, jambes tendues de la même façon, mais en gardant le menton rentré vers la poitrine. Arrête-toi au premier tiraillement net, sans forcer, et mesure la distance doigts-sol.' }
   };
   // ordre : sur le dos, sur le ventre, à genoux, à quatre pattes, assis sur une chaise, debout ; doses des semaines 1 à 4
   const BACK = [
