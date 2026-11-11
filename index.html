@@ -332,7 +332,7 @@ textarea.input { min-height: 120px; padding: 12px; font-size: var(--fs-xs); font
 .pprog i { flex: 1; height: 4px; border-radius: 4px; background: color-mix(in srgb, currentColor 16%, transparent); }
 .pprog i.done { background: var(--teal); }
 .pprog i.now { background: var(--sun); }
-#player .pbody { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; text-align: center; padding: 12px var(--gut-r) 12px var(--gut-l); min-height: 0; overflow: auto; }
+#player .pbody { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; justify-content: safe center; gap: 14px; text-align: center; padding: 12px var(--gut-r) 12px var(--gut-l); min-height: 0; overflow: auto; }
 #player .pfoot { padding: 10px var(--gut-r) 18px var(--gut-l); display: flex; flex-direction: column; gap: 10px; max-width: var(--maxw); width: 100%; margin: 0 auto; }
 .giant { font-family: var(--display); font-weight: 800; font-size: clamp(7rem, 42vw, 13rem); line-height: .85; font-variant-numeric: tabular-nums; letter-spacing: -.01em; }
 .giant.mid { font-size: clamp(5rem, 30vw, 9rem); }
@@ -411,7 +411,7 @@ body:has(#player:not([hidden])) #toast { top: calc(72px + env(safe-area-inset-to
 <canvas id="confetti" hidden></canvas>
 <div id="toast" hidden role="status" aria-live="polite"></div>
 <noscript><p style="padding:24px">Aube a besoin de JavaScript pour fonctionner.</p></noscript>
-<script>window.AUBE_VERSION = '1.3.0';
+<script>window.AUBE_VERSION = '1.4.0';
 /* ==========================================================================
    AUBE · moteur de programme (pur, sans DOM)
    Toute la logique d'entraînement, d'adaptation et de récompense vit ici.
@@ -501,6 +501,11 @@ const Aube = (() => {
     legswing: ['Balancier de jambe', 'Debout, une main au mur si besoin, balance une jambe d\'avant en arrière, sans forcer.'],
     goodmorning: ['Bonjour', 'Debout, mains sur la poitrine, genoux souples. Penche le buste en avant en reculant les fesses, dos plat, puis remonte.'],
     wallpush: ['Pompes contre le mur', 'Mains au mur à hauteur d\'épaules, corps gainé. Rapproche la poitrine du mur, puis repousse.'],
+    pelvictilt: ['Bascule du bassin', 'Sur le dos, genoux pliés. Expire en plaquant le bas du dos au sol, inspire en le creusant légèrement.'],
+    kneeschest: ['Genoux poitrine', 'Sur le dos, ramène les genoux vers la poitrine et tiens tes tibias. Laisse le bas du dos s\'arrondir.'],
+    qrot: ['Rotation à quatre pattes', 'Glisse une main sous la poitrine, puis ouvre le bras vers le plafond en tournant le haut du dos.'],
+    slider: ['Glissements neuraux assis', 'Assis, dos arrondi : tends la jambe en regardant vers le haut, plie-la en rentrant le menton.'],
+    rolldown: ['Enroulé vertébral', 'Genoux souples, enroule le dos de la tête vers le bas, vertèbre par vertèbre, puis déroule pour remonter.'],
     deadbug: ['Dead bug', 'Sur le dos, bras vers le plafond, genoux pliés au-dessus des hanches. Tends un bras et la jambe opposée sans décoller le bas du dos.'],
     superman: ['Superman', 'À plat ventre, décolle bras et jambes du sol en même temps, tiens 2 s, redescends. Regard vers le sol.'],
     angels: ['Anges au sol', 'À plat ventre, bras décollés du sol : fais-les glisser des hanches jusqu\'au-dessus de la tête, puis reviens.'],
@@ -531,8 +536,8 @@ const Aube = (() => {
   };
 
   /* ---------- Positions : on enchaîne debout, puis au sol, pour limiter les montées et descentes ---------- */
-  const POSK = { debout: 0, accroupi: 1, genoux: 2, enfant: 2.5, quatre: 3, planche: 3.1, cote: 3.15, ventre: 3.2, assis: 4, dos: 5 };
-  const POSL = { debout: 'Debout', accroupi: 'Accroupi', genoux: 'À genoux', quatre: 'À quatre pattes', planche: 'En planche', cote: 'Sur le côté', ventre: 'Sur le ventre', enfant: 'À genoux', assis: 'Assis', dos: 'Sur le dos' };
+  const POSK = { debout: 0, chaise: .5, accroupi: 1, genoux: 2, enfant: 2.5, quatre: 3, planche: 3.1, cote: 3.15, ventre: 3.2, assis: 4, dos: 5 };
+  const POSL = { debout: 'Debout', chaise: 'Assis sur une chaise', accroupi: 'Accroupi', genoux: 'À genoux', quatre: 'À quatre pattes', planche: 'En planche', cote: 'Sur le côté', ventre: 'Sur le ventre', enfant: 'À genoux', assis: 'Assis', dos: 'Sur le dos' };
   const POS_OF = {
     jj: 'debout', arms: 'debout', twist: 'debout', squatslow: 'debout', catcow: 'quatre', scap: 'planche',
     squat: 'debout', lunge: 'debout', revlunge: 'debout', wallsit: 'debout', plank: 'planche', sideplank: 'cote',
@@ -542,7 +547,8 @@ const Aube = (() => {
     sidelunge: 'debout', frog: 'quatre', butterfly: 'assis', straddle: 'assis', recbutterfly: 'dos',
     standfold: 'debout', calf: 'debout', seatfold: 'assis', supham: 'dos', suptwist: 'dos', quad: 'debout',
     pushup: 'planche', knee: 'quatre', crunch: 'dos',
-    march: 'debout', hipcircle: 'debout', legswing: 'debout', goodmorning: 'debout', wallpush: 'debout', deadbug: 'dos'
+    march: 'debout', hipcircle: 'debout', legswing: 'debout', goodmorning: 'debout', wallpush: 'debout', deadbug: 'dos',
+    pelvictilt: 'dos', kneeschest: 'dos', qrot: 'quatre', slider: 'chaise', rolldown: 'debout'
   };
   const posOf = id => POS_OF[id] || 'debout';
   const posLabel = id => POSL[posOf(id)];
@@ -991,6 +997,96 @@ const Aube = (() => {
     return { state: st, summary: { xp: rec.xp, mult, prs, changes, badges: newBadges, streak: si.streak, record: rec, stretchSec, flex } };
   }
 
+  /* ---------- Programme dos (provisoire, à part du programme principal) ----------
+     28 jours, une routine d'une dizaine de minutes, idéalement le soir.
+     Il ne touche ni aux séances, ni à la série, ni aux niveaux, ni à l'XP. */
+  const BACK_DAYS = 28;
+  const BACK_TEST_DAYS = [1, 8, 15, 22, 28];
+  const BT = {
+    pull: { name: 'Tiraillement au milieu du dos', short: 'Sensation de 0 à 10', fig: 'rolldown', better: 'down', def: 5, unit: '/10', max: 10,
+      how: 'Debout, rentre le menton puis enroule doucement les épaules, comme au début de la flexion. Arrête-toi au premier tiraillement et note sa force : 0 = rien, 10 = très fort.' },
+    toesRelax: { name: 'Flexion avant, tête relâchée', short: 'Doigts-sol, tête relâchée', fig: 'standfold', better: 'down', def: 22, unit: 'cm',
+      how: 'Debout, pieds joints, genoux tendus sans les bloquer. Penche-toi lentement en laissant la tête pendre librement. Mesure la distance entre le bout de tes doigts et le sol (0 si tu touches).' },
+    toesTuck: { name: 'Flexion avant, menton rentré', short: 'Doigts-sol, menton rentré', fig: 'rolldown', better: 'down', def: 25, unit: 'cm',
+      how: 'Pareil, mais en gardant le menton rentré vers la poitrine. Arrête-toi au premier tiraillement net, sans forcer, et mesure la distance doigts-sol.' }
+  };
+  // ordre : sur le dos, sur le ventre, à genoux, à quatre pattes, assis sur une chaise, debout ; doses des semaines 1 à 4
+  const BACK = [
+    ['pelvictilt', 'reps', [10, 12, 15, 15], false, 4],
+    ['kneeschest', 'stretch', [30, 40, 45, 60]],
+    ['suptwist', 'stretch', [30, 35, 40, 45], true],
+    ['cobra', 'stretch', [20, 25, 30, 30]],
+    ['child', 'stretch', [40, 45, 60, 60]],
+    ['catcow', 'reps', [8, 10, 10, 12], false, 5],
+    ['qrot', 'reps', [5, 6, 8, 8], true, 4],
+    ['slider', 'reps', [8, 10, 12, 12], true, 3],
+    ['rolldown', 'reps', [4, 5, 6, 6], false, 10]
+  ];
+  const BACK_NOTE = { pelvictilt: 'lentement, au rythme du souffle', catcow: 'lentement, au rythme du souffle', qrot: 'par côté, lentement', slider: 'par jambe, en va-et-vient', rolldown: 'très lentement, 2 respirations en bas' };
+  const backDay = (st, k) => st.back && st.back.start ? diffDays(st.back.start, k) + 1 : 0;
+  function backPlan(st, k) {
+    const day = clamp(backDay(st, k), 1, BACK_DAYS), w = Math.min(4, Math.ceil(day / 7)) - 1;
+    const items = BACK.map(([id, mode, doses, uni, spr]) => mode === 'stretch'
+      ? { id, name: LIB[id][0], how: LIB[id][1], mode: 'stretch', pos: posOf(id), uni: !!uni, hold: doses[w], target: doses[w], base: false, sets: 1, rest: 0 }
+      : { id, name: LIB[id][0], how: LIB[id][1], mode: 'reps', target: doses[w], uni: !!uni, note: BACK_NOTE[id] || (uni ? 'par côté' : ''), spr, cat: 'back', sets: 1, rest: 0 });
+    const blocks = [];
+    if (BACK_TEST_DAYS.includes(day)) blocks.push({ kind: 'flextest', role: 'backtest', title: 'Mesures du dos', items: Object.keys(BT) });
+    const routine = { kind: 'circuit', role: 'back', title: 'Routine dos', items, transition: 0 };
+    blocks.push(routine);
+    const est = items.reduce((a, it) => a + (it.mode === 'stretch' ? (it.hold + 12) * (it.uni ? 2 : 1) : it.target * it.spr * (it.uni ? 2 : 1) + 6), 0) + (blocks.length > 1 ? 150 : 0);
+    return { date: k, dow: dow(k), kind: 'back', day, week: w + 1, blocks, estSec: est };
+  }
+  function startBack(stIn, k) {
+    const st = JSON.parse(JSON.stringify(stIn));
+    const prev = st.back || {};
+    st.back = { start: k, active: true, log: prev.log || [], tests: prev.tests || [], rounds: (prev.rounds || 0) + 1 };
+    st.updatedAt = new Date().toISOString();
+    return st;
+  }
+  function stopBack(stIn, k) {
+    const st = JSON.parse(JSON.stringify(stIn));
+    if (st.back) { st.back.active = false; st.back.ended = k; }
+    return st;
+  }
+  function backStatus(st, k) {
+    if (!st.back || !st.back.active) return { active: false, started: !!st.back };
+    const day = backDay(st, k), log = st.back.log || [];
+    const since = log.filter(x => x.d >= st.back.start);
+    return { active: true, day, finished: day > BACK_DAYS, doneToday: log.some(x => x.d === k), done: since.length, testToday: BACK_TEST_DAYS.includes(day) };
+  }
+  function backProgress(st) {
+    const out = {}, tests = (st.back && st.back.tests) || [];
+    Object.keys(BT).forEach(key => {
+      const arr = tests.filter(x => Number.isFinite(x[key]));
+      if (!arr.length) return;
+      const a = arr[0][key], b = arr[arr.length - 1][key];
+      out[key] = { first: a, last: b, n: arr.length, gain: a - b };
+    });
+    return out;
+  }
+  function recordBack(stIn, k, log) {
+    if (!stIn.back) return { state: stIn, summary: null };
+    const st = JSON.parse(JSON.stringify(stIn));
+    const day = backDay(st, k);
+    const stretchSec = (log.stretch || []).reduce((a, x) => a + Math.min(x.sec || 0, 300), 0);
+    st.back.log = (st.back.log || []).filter(x => x.d !== k);
+    st.back.log.push({ d: k, day, sec: Math.round(log.durSec || 0), stretchSec, reps: (log.circuit || []).reduce((a, x) => a + (x.done || 0), 0) });
+    let tests = null;
+    const vals = {};
+    Object.keys(BT).forEach(key => { const raw = log.flex && log.flex[key], v = Number(raw); if (raw !== undefined && raw !== null && Number.isFinite(v) && v >= 0) vals[key] = Math.round(v); });
+    if (Object.keys(vals).length) {
+      const prev = {}, first = {}, old = (st.back.tests || []).filter(x => x.d !== k);
+      Object.keys(BT).forEach(key => { const arr = old.filter(x => Number.isFinite(x[key])); if (arr.length) { prev[key] = arr[arr.length - 1][key]; first[key] = arr[0][key]; } });
+      st.back.tests = old.concat([Object.assign({ d: k }, vals)]).sort((a, b) => a.d < b.d ? -1 : 1);
+      tests = { vals, prev, first };
+    }
+    // alerte : tiraillement fort, ou qui augmente d'une mesure à l'autre
+    const pulls = (st.back.tests || []).filter(x => Number.isFinite(x.pull)).map(x => x.pull);
+    const warn = pulls.length && (pulls[pulls.length - 1] >= 7 || (pulls.length >= 2 && pulls[pulls.length - 1] >= 4 && pulls[pulls.length - 1] > pulls[pulls.length - 2]));
+    st.updatedAt = new Date().toISOString();
+    return { state: st, summary: { day, tests, warn: !!warn, done: st.back.log.filter(x => x.d >= st.back.start).length } };
+  }
+
   /* ---------- Bilan de souplesse ---------- */
   function mergeFlex(st, date, vals) {
     const clean = {};
@@ -1169,6 +1265,7 @@ const Aube = (() => {
   return {
     dkey, parseKey, addDays, diffDays, dow, mondayOf, clamp,
     EX, FORMATS, WEEK, PHASES, LIB, MODULES, BADGES, TITLES,
+    BT, BACK_DAYS, backPlan, startBack, stopBack, backStatus, backProgress, recordBack,
     POSL, posOf, posLabel, byPos, THEMES, FT, UNI, DOSE, WDOSE, CARDIO, circuitSeconds, itemSeconds,
     flexHold, flexPlan, flexCheckPlan, recordFlexTest, flexProgress, stretchSeconds,
     cap, levelFor, newState, migrate, dayContext, planDay, testPlan, buildSets, applySession, detrain,
@@ -1228,6 +1325,10 @@ const Guide = (() => {
     else s += '<line x1="4" y1="91.5" x2="156" y2="91.5" stroke="currentColor" stroke-width="1.5" opacity=".2"/>';
     (props || []).forEach(pr => {
       if (pr.wall !== undefined) s += `<line x1="${pr.wall}" y1="-6" x2="${pr.wall}" y2="91" stroke="currentColor" stroke-width="3" opacity=".22"/>`;
+      if (pr.chair) {
+        const [x0, x1, y] = pr.chair;
+        s += `<path d="M${x0},${y - 26} L${x0},91 M${x0},${y} L${x1},${y} L${x1},91" fill="none" stroke="currentColor" stroke-width="3" stroke-linejoin="round" opacity=".22"/>`;
+      }
     });
     s += poly(g.neck, g.arms[1][0], g.arms[1][1], 4.2, back);
     s += poly(g.hip, g.legs[1][0], g.legs[1][1], 4.6, back);
@@ -1371,6 +1472,23 @@ const Guide = (() => {
     deadbug: { frames: [
       { h: [74, 84], t: 270, hd: 0, a: [{ u: 5, l: 5 }, { u: 0, l: 0 }], l: [{ u: 0, l: 90 }, { u: 3, l: 93 }], w: 250, d: 1000 },
       { h: [74, 84], t: 270, hd: 0, a: [{ u: 5, l: 5 }, { u: 282, l: 282 }], l: [{ u: 80, l: 82 }, { u: 3, l: 93 }], w: 500, d: 1000 }] },
+    pelvictilt: { frames: [
+      mod(BACK_LIE, { arch: -3.5, w: 500, d: 1200 }),
+      mod(BACK_LIE, { arch: .6, l: [[93, 90], [91, 90]], w: 900, d: 1200 })] },
+    kneeschest: { frames: [
+      mod(BACK_LIE, { a: [[70, 63], [68, 63]], ab: [1, 1], l: [{ u: 322, l: 62 }, { u: 324, l: 64 }], d: 1800 }),
+      mod(BACK_LIE, { a: [[66, 65], [64, 65]], ab: [1, 1], l: [{ u: 310, l: 55 }, { u: 312, l: 57 }], w: 1200, d: 1800 })] },
+    qrot: { frames: [
+      mod(FOURS, { t: 82, hd: 25, a: [[64, 87], [89, 90]], ab: [1, 1], w: 500, d: 1300 }),
+      mod(FOURS, { t: 70, hd: -30, a: [{ u: 12, l: 6 }, [89, 90]], ab: [1, 1], w: 800, d: 1300 })] },
+    slider: { props: [{ chair: [50, 76, 73] }], frames: [
+      { h: [66, 70], t: 14, arch: 3.2, hd: 32, a: [[80, 68], [78, 68]], ab: [-1, -1], l: [{ u: 92, l: 182 }, [88, 90]], d: 900 },
+      { h: [66, 70], t: 12, arch: 3.2, hd: -28, a: [[80, 67], [78, 67]], ab: [-1, -1], l: [{ u: 88, l: 96 }, [88, 90]], d: 900 }] },
+    rolldown: { frames: [
+      { h: [80, 49], t: 0, arch: 0, hd: 0, a: [[81, 50], [79, 50]], ab: [-1, -1], l: [[82, 90], [79, 90]], w: 500, d: 1100 },
+      { h: [79, 49.5], t: 34, arch: 4, hd: 32, a: [[92, 54], [90, 54]], ab: [-1, -1], l: [[82, 90], [79, 90]], d: 1300 },
+      { h: [76, 51], t: 114, arch: 7, hd: 22, a: [[88, 80], [86, 80]], ab: [-1, -1], l: [[82, 90], [79, 90]], w: 900, d: 1300 },
+      { h: [79, 49.5], t: 34, arch: 4, hd: 32, a: [[92, 54], [90, 54]], ab: [-1, -1], l: [[82, 90], [79, 90]], d: 1100 }] },
     sidelunge: { view: 'front', solid: true, frames: [
       { h: [95, 72], t: 6, a: [[112, 70], [108, 68]], l: [[115, 90], [58, 90]], d: 2000 },
       { h: [96, 73.5], t: 8, a: [[112, 72], [108, 70]], l: [[115, 90], [58, 90]], d: 2000 }] },
@@ -1568,7 +1686,28 @@ const Guide = (() => {
       k: ['Debout, une main contre un mur pour l\'équilibre.', 'Plie une jambe et attrape ta cheville avec la main du même côté.', 'Rapproche le talon des fesses, genoux côte à côte, et pousse doucement le bassin vers l\'avant.'],
       e: ['Cambrer le bas du dos.', 'Genou qui part vers l\'avant ou sur le côté.'],
       easy: 'Allongé sur le côté, ou avec une serviette autour de la cheville.', b: 'Respire calmement, regard droit devant.' },
-    child: { m: 'Dos, hanches, relâchement', k: ['À genoux, gros orteils qui se touchent.', 'Assieds-toi sur les talons et allonge les bras devant toi, front au sol.', 'Respire lentement dans le dos.'] }
+    child: { m: 'Dos, hanches, relâchement', k: ['À genoux, gros orteils qui se touchent.', 'Assieds-toi sur les talons et allonge les bras devant toi, front au sol.', 'Respire lentement dans le dos.'] },
+    pelvictilt: { m: 'Bas du dos, contrôle du bassin',
+      k: ['Sur le dos, genoux pliés, pieds à plat largeur de hanches.', 'Expire en plaquant doucement le bas du dos au sol : le bassin bascule, le pubis monte un peu.', 'Inspire en relâchant : un petit creux revient sous le bas du dos.', 'Petit mouvement, lent, sans décoller les fesses.'],
+      e: ['Pousser avec les jambes ou décoller le bassin : ce n\'est pas un pont.', 'Bloquer la respiration.'],
+      b: 'Expire pour plaquer, inspire pour relâcher.', tip: 'C\'est le premier pas pour assouplir les lombaires : apprendre à les bouger seules.' },
+    kneeschest: { m: 'Bas du dos (lombaires), fessiers',
+      k: ['Sur le dos, ramène les deux genoux vers la poitrine.', 'Tiens tes tibias ou l\'arrière des cuisses.', 'Laisse le bas du dos s\'arrondir et s\'étaler au sol, épaules et tête posées.'],
+      e: ['Tirer fort avec les bras.', 'Décoller la tête : ça charge la nuque.'],
+      easy: 'Un genou à la fois, l\'autre pied au sol.', hard: 'Petits bercements de gauche à droite pour masser le bas du dos.', b: 'Respire dans le bas du dos : il se gonfle contre le sol.' },
+    qrot: { m: 'Haut du dos (rotation), épaules',
+      k: ['À quatre pattes, mains sous les épaules, genoux sous les hanches.', 'Glisse une main sous ta poitrine vers le côté opposé, en laissant l\'épaule descendre.', 'Puis ouvre le même bras vers le plafond en tournant le haut du dos, le regard suit la main.', 'Le bassin reste immobile : seule la cage thoracique tourne.'],
+      e: ['Tourner le bassin avec le buste.', 'Aller vite : marque un temps en haut et en bas.'],
+      easy: 'Main derrière la tête au lieu du bras tendu.', b: 'Expire en passant sous la poitrine, inspire en ouvrant.' },
+    slider: { m: 'Mobilité des nerfs du dos et des jambes', name: 'Glissements neuraux',
+      k: ['Assis au bord d\'une chaise, laisse le dos s\'arrondir, mains sur les cuisses.', 'Tends une jambe en levant le regard vers le plafond.', 'Plie la jambe en rentrant le menton.', 'Va-et-vient fluide : tu ne tiens aucune position.'],
+      e: ['Tendre la jambe ET rentrer le menton en même temps : c\'est l\'inverse, sinon tu étires le nerf au lieu de le faire glisser.', 'Chercher une sensation forte : un léger tiraillement suffit, jamais de fourmillements.'],
+      easy: 'Tends moins la jambe.', b: 'Respire normalement, sans forcer.',
+      tip: 'Utile quand rentrer le menton tire dans le dos : la gêne vient souvent des tissus nerveux qui manquent de mobilité, pas seulement des muscles.' },
+    rolldown: { m: 'Toute la colonne, ischio-jambiers',
+      k: ['Debout, pieds largeur de hanches, genoux souples.', 'Rentre le menton, puis enroule le dos vers le bas, une vertèbre après l\'autre, bras relâchés.', 'Descends seulement jusqu\'au premier tiraillement net, respire 2 fois en bas.', 'Déroule pour remonter, la tête en dernier.'],
+      e: ['Descendre d\'un bloc depuis les hanches : on cherche un dos qui s\'arrondit petit à petit.', 'Forcer pour toucher le sol.'],
+      easy: 'Genoux plus fléchis, ou dos contre un mur au départ.', hard: 'Jambes presque tendues.', b: 'Expire en descendant, inspire en bas, expire en remontant.' }
   };
   const GROUPS = [
     ['Les deux objectifs', ['pushup', 'knee', 'crunch']],
@@ -1579,7 +1718,8 @@ const Guide = (() => {
     ['Souplesse : hanches et adducteurs', ['sidelunge', 'frog', 'butterfly', 'straddle', 'recbutterfly']],
     ['Souplesse : ischios et mollets', ['standfold', 'calf', 'seatfold', 'supham']],
     ['Souplesse : hanches, cuisses et fessiers', ['quad', 'deepsquat', 'hipflexor', 'stglute']],
-    ['Souplesse : haut du corps et dos', ['stchest', 'cobra', 'child', 'suptwist']]
+    ['Souplesse : haut du corps et dos', ['stchest', 'cobra', 'child', 'suptwist']],
+    ['Programme dos', ['pelvictilt', 'kneeschest', 'qrot', 'slider', 'rolldown']]
   ];
   return { FIGS, T, GROUPS, svg, kick, poseAt, draw };
 })();
@@ -1821,6 +1961,7 @@ if (typeof module !== 'undefined') module.exports = Guide;
         if (b.rounds > 1 && b.alt) names = `<span class="pround">${b.rounds > 2 ? 'Tours 1 et 3' : 'Tour 1'}</span>${groupedNames(b.items)}<span class="pround">Tour 2</span>${groupedNames(b.alt)}`;
         return `<li><span class="what">${esc(what)}</span><span class="dur">${fmtMin(blockSec(b))}</span><span class="detail">${names}<span class="pgroup">${tail}</span></span></li>`;
       }
+      if (b.kind === 'circuit' && b.role === 'back') return `<li><span class="what">${esc(b.title)}</span><span class="dur">${fmtMin(blockSec(b))}</span><span class="detail">${groupedDose(b.items)}<span class="pgroup">Lentement, tension de 3 ou 4 sur 10. Les étirements attendent ton Go.</span></span></li>`;
       if (b.kind === 'circuit') {
         const mod = b.role === 'module', it0 = b.items[0];
         const tail = mod ? `${it0.sets > 1 ? `${it0.sets} séries par exercice, ${it0.rest} s de repos entre deux. ` : ''}${b.transition} s pour préparer l'exercice suivant. Rythme modéré : tu dois pouvoir dire quelques mots.` : 'À ton rythme. Les exercices chronométrés démarrent quand tu appuies sur Go.';
@@ -1830,6 +1971,7 @@ if (typeof module !== 'undefined') module.exports = Guide;
         const txt = `Repère : ${b.hold} s par position${b.items.some(i => i.uni) ? ' et par côté' : ''}. Le chrono sonne mais ne passe jamais tout seul.${HOLDWHY[b.why] || ''}`;
         return `<li><span class="what">${esc(b.title)}</span><span class="dur">${fmtMin(blockSec(b))}</span><span class="detail">${groupedNames(b.items, true)}<span class="pgroup">${esc(txt)}</span></span></li>`;
       }
+      if (b.kind === 'flextest' && b.role === 'backtest') return `<li><span class="what">Mesures du dos (facultatif)</span><span class="dur">${fmtMin(blockSec(b))}</span><span class="detail">Trois repères pour suivre l'évolution : le tiraillement de 0 à 10, puis la flexion avant tête relâchée et menton rentré.</span></li>`;
       if (b.kind === 'flextest') return `<li><span class="what">Bilan souplesse (facultatif)</span><span class="dur">${fmtMin(blockSec(b))}</span><span class="detail">Trois mesures au mètre ruban pour suivre tes progrès : flexion avant, écart assis, papillon.</span></li>`;
       if (b.kind === 'sets') {
         const what = b.role === 'main' ? `${A.EX[b.ex].name}, ${b.formatLabel.toLowerCase()}` : b.title;
@@ -1928,6 +2070,7 @@ if (typeof module !== 'undefined') module.exports = Guide;
     }
     html += bannersHTML(k);
     html += todayHTML(k);
+    html += backHTML(k);
     html += streakHTML(k);
     html += goalsHTML(k);
     html += levelHTML();
@@ -1943,6 +2086,7 @@ if (typeof module !== 'undefined') module.exports = Guide;
       out.push(`<div class="banner"><span class="bar"></span><p class="grow"><b>Tes pompes sur les genoux sont solides.</b> <span class="small">Le test d'aujourd'hui vérifie si tu peux passer aux pompes classiques.</span></p></div>`);
     }
     if (S.startDate && !S.flexIntroSeen && !(S.flexTests || []).length) out.push(`<div class="banner teal"><span class="bar"></span><div class="grow stack" style="gap:8px"><p><b>Nouveau : la souplesse</b><br><span class="small muted">Chaque séance finit maintenant par 5 à 9 minutes d'étirements, et le dimanche propose une séance douce facultative. Un premier bilan (3 mesures au mètre ruban, 3 minutes) servira de point de départ.</span></p><div class="row" style="flex-wrap:wrap"><button class="btn btn-quiet btn-s" data-act="flexcheck">Faire le bilan</button><button class="link" data-act="flexintro-hide">Plus tard</button></div></div></div>`);
+    if (S.startDate && !S.backIntroSeen && !S.back) out.push(`<div class="banner"><span class="bar"></span><div class="grow stack" style="gap:8px"><p><b>Programme dos provisoire</b><br><span class="small muted">4 semaines, une routine d'environ 10 minutes par jour pour assouplir la colonne et calmer le tiraillement quand tu rentres le menton. À part du programme principal, sans effet sur ta série.</span></p><div class="row" style="flex-wrap:wrap"><button class="btn btn-quiet btn-s" data-act="start-back">Commencer</button><button class="link" data-act="backintro-hide">Plus tard</button></div></div></div>`);
     const trains = S.sessions.length;
     const since = S.lastBackup ? A.diffDays(S.lastBackup.slice(0, 10), k) : 999;
     if (trains >= 6 && since > 21) out.push(`<div class="banner rose"><span class="bar"></span><div class="grow stack" style="gap:8px"><p><b>Sauvegarde tes progrès</b><br><span class="small muted">Tes données vivent seulement sur ce téléphone. Une copie de temps en temps les met à l'abri.</span></p><div><button class="btn btn-quiet btn-s" data-act="settings" data-focus="backup">Sauvegarder</button></div></div></div>`);
@@ -1984,6 +2128,26 @@ if (typeof module !== 'undefined') module.exports = Guide;
       <button class="btn btn-sun btn-block" data-act="start-today">Commencer la séance</button>
       <label class="toggle-light"><span class="switch"><input type="checkbox" id="light-toggle" ${lightToday ? 'checked' : ''}></span><span>Fatigué ou pressé : version allégée, sans changement de niveau</span></label>
     </div>`;
+  }
+  function backHTML(k) {
+    const bs = A.backStatus(S, k);
+    if (!bs.active) return '';
+    const note = '<p class="small muted">Programme provisoire, à part : il ne touche ni à ta série, ni à tes niveaux, ni à ton XP. De préférence le soir, ou au moins une heure après le lever.</p>';
+    if (bs.finished) {
+      const bp = A.backProgress(S);
+      const rows = Object.keys(A.BT).filter(key => bp[key]).map(key => { const f = A.BT[key], x = bp[key], u = f.unit === 'cm' ? ' cm' : '/10'; return `<li><span><b>${esc(f.name)}</b></span><span class="small">${x.n > 1 ? `${x.first}${u} → <b>${x.last}${u}</b>` : `${x.last}${u}`}</span></li>`; }).join('');
+      return `<div class="section"><div class="today-head"><h3>Programme dos terminé</h3><span class="chip violet">${bs.done} routines</span></div>
+        ${rows ? `<ul class="hist">${rows}</ul>` : ''}
+        <p class="small muted">Si la gêne a disparu, tu peux arrêter : les étirements des séances entretiennent la souplesse. S'il reste un tiraillement, refais 4 semaines.</p>
+        <div class="row" style="flex-wrap:wrap"><button class="btn btn-quiet btn-s grow" data-act="start-back">Recommencer 4 semaines</button><button class="btn btn-ghost btn-s grow" data-act="stop-back">Arrêter</button></div></div>`;
+    }
+    const nextTest = [1, 8, 15, 22, 28].find(d => d > bs.day);
+    if (bs.doneToday) return `<div class="section"><div class="today-head"><h3>Routine dos faite</h3><span class="chip teal">jour ${bs.day} sur ${A.BACK_DAYS}</span></div>
+      <p class="small muted">${bs.done} routine${bs.done > 1 ? 's' : ''} depuis le début.${nextTest ? ` Prochaines mesures : jour ${nextTest}.` : ''}</p></div>`;
+    const bp = A.backPlan(S, k);
+    return `<div class="section"><div class="today-head"><h3>Programme dos, jour ${bs.day} sur ${A.BACK_DAYS}</h3><span class="chip violet">environ ${fmtMin(bp.estSec)}</span></div>
+      ${note}${planListHTML(bp)}
+      <button class="btn btn-quiet btn-block" data-act="start-back-routine">Commencer la routine dos</button></div>`;
   }
   function nextTraining(k) {
     for (let i = 1; i < 8; i++) { const d = A.addDays(k, i); const p = A.planDay(S, d); if (p.kind === 'train' || p.kind === 'test') return p; }
@@ -2186,6 +2350,7 @@ if (typeof module !== 'undefined') module.exports = Guide;
         <div class="legend"><span><i style="background:var(--sun)"></i>Tests</span><span><i style="background:transparent;border:2px solid var(--sun)"></i>Dernières séries au max</span><span>Pointillés : projection</span></div></div>
       <div class="section"><h3>Crunchs d'affilée</h3>${lineChart('crunch', g.crunch, 'var(--rose)')}</div>
       ${flexProgressHTML(t)}
+      ${backProgressHTML()}
       <div class="section"><h3>Volume par semaine</h3><p class="small muted">Pompes</p>${weeklyBars('pushup', 'var(--sun)')}<p class="small muted">Crunchs</p>${weeklyBars('crunch', 'var(--rose)')}</div>
       <div class="section"><h3>Au total</h3><div class="stats">
         <div><span class="num">${nf(t.pushup + t.knee)}</span><span class="small muted">pompes</span></div>
@@ -2212,6 +2377,21 @@ if (typeof module !== 'undefined') module.exports = Guide;
       <ul class="hist">${rows}</ul>
       <p class="small muted">${last ? 'Dernier bilan le ' + fmtShort(last.d) + '. Le bilan revient à chaque test, toutes les 4 semaines.' : 'Le premier bilan sert de point de départ. Il revient ensuite à chaque test, toutes les 4 semaines.'}</p>
       <button class="btn btn-quiet btn-block" data-act="flexcheck">Faire un bilan souplesse maintenant</button></div>`;
+  }
+
+  function backProgressHTML() {
+    if (!S.back) return '';
+    const bp = A.backProgress(S), bs = A.backStatus(S, today());
+    const rows = Object.keys(A.BT).map(key => {
+      const f = A.BT[key], x = bp[key], u = f.unit === 'cm' ? ' cm' : '/10';
+      if (!x) return `<li><span><b>${esc(f.name)}</b><span class="small muted" style="display:block">${esc(f.short)}</span></span><span class="small muted">à mesurer</span></li>`;
+      const gain = x.n > 1 ? `<span class="small ${x.gain > 0 ? 'good' : 'muted'}">${x.gain > 0 ? (f.unit === 'cm' ? x.gain + ' cm gagnés' : '−' + x.gain + ' point' + (x.gain > 1 ? 's' : '')) : x.gain < 0 ? 'en hausse' : 'stable'}</span>` : '<span class="small muted">point de départ</span>';
+      return `<li><span><b>${esc(f.name)}</b><span class="small muted" style="display:block">${esc(f.short)}${x.n > 1 ? ' : ' + x.first + ' → ' + x.last + u : ''}</span></span><span style="text-align:right"><span class="num" style="font-size:1.6rem">${x.last}${u}</span><br>${gain}</span></li>`;
+    }).join('');
+    const done = ((S.back.log) || []).filter(x => x.d >= S.back.start).length;
+    return `<div class="section"><div class="today-head"><h3>Dos</h3><span class="chip violet">${done} routine${done > 1 ? 's' : ''}</span></div>
+      <ul class="hist">${rows}</ul>
+      <p class="small muted">${bs.active ? (bs.finished ? 'Programme terminé.' : `Jour ${bs.day} sur ${A.BACK_DAYS}. Mesures les jours 1, 8, 15, 22 et 28.`) : 'Programme arrêté. Tu peux le relancer dans les réglages.'}</p></div>`;
   }
 
   /* ---------- Gestes ---------- */
@@ -2299,12 +2479,20 @@ if (typeof module !== 'undefined') module.exports = Guide;
         <div id="paste-zone" hidden class="stack"><textarea id="paste-text" class="input" placeholder="Colle ici le texte de sauvegarde"></textarea><button class="btn btn-sun btn-s" data-act="paste-import">Restaurer</button></div>
         <p class="xs muted">Stockage protégé : ${persisted === true ? 'oui, le navigateur ne l\'effacera pas de lui-même.' : persisted === false ? 'pas encore accordé. Installer l\'appli sur l\'écran d\'accueil aide.' : 'inconnu sur ce navigateur.'}</p>
       </div>
+      <div class="section" id="back-set"><h3>Programme dos</h3>${backSettingsHTML()}</div>
       <div class="section"><h3>Programme</h3>
         <button class="btn btn-ghost btn-block" data-act="force-test">Refaire un test aujourd'hui</button>
         <button class="btn btn-ghost btn-block" data-act="about">La méthode et les sources</button>
         <button class="btn btn-ghost btn-block" data-tab-go="guide">Le guide des gestes</button>
       </div>
       <div class="section"><button class="link" data-act="reset" style="color:var(--rose)">Tout effacer</button><div id="reset-zone"></div><p class="xs muted">Aube ${esc(window.AUBE_VERSION || '')}</p></div>`;
+  }
+  function backSettingsHTML() {
+    const bs = A.backStatus(S, today());
+    if (bs.active) return `<p class="small muted">${bs.finished ? 'Terminé' : `Jour ${bs.day} sur ${A.BACK_DAYS}`}, ${bs.done} routine${bs.done > 1 ? 's' : ''} faite${bs.done > 1 ? 's' : ''}. Tes mesures restent dans l'onglet Progrès si tu arrêtes.</p>
+      <button class="btn btn-ghost btn-block" data-act="stop-back">Arrêter le programme dos</button>`;
+    return `<p class="small muted">4 semaines de mobilité de la colonne, à part du programme principal : environ 10 minutes par jour, des mesures chaque semaine.</p>
+      <button class="btn btn-ghost btn-block" data-act="start-back">${S.back ? 'Recommencer le programme dos' : 'Commencer le programme dos'}</button>`;
   }
   function gcalUrl() {
     const [h, m] = (S.settings.reminder || '07:00').split(':').map(Number);
@@ -2345,6 +2533,11 @@ if (typeof module !== 'undefined') module.exports = Guide;
       <p>Une revue de 2018 montre que c'est le temps total d'étirement par semaine qui fait progresser, avec au moins 5 séances par semaine. L'ACSM conseille de tenir chaque position jusqu'à une tension légère, sans douleur, et de cumuler environ 60 secondes par exercice. Aube commence à 30 secondes par position et par côté, puis monte jusqu'à 60 secondes au fil des cycles. Si tu tiens souvent plus longtemps que prévu, le repère monte plus vite.</p>
       <p>Le chrono est un repère : il sonne quand le temps visé est atteint, puis continue de compter. C'est toi qui passes à la suite, et chaque position attend ton Go pour te laisser le temps de t'installer. Les longs étirements sont placés après l'effort : tenus plus de 60 secondes par muscle juste avant un effort, ils peuvent réduire un peu la force (Behm, 2016).</p>
       <p>Toutes les 4 semaines, le bilan souplesse mesure trois choses au mètre ruban : la distance doigts-sol, l'écart entre les talons jambes écartées et la hauteur des genoux en papillon.</p>
+      <h3>Le programme dos (provisoire)</h3>
+      <p>Quand rentrer le menton tire au milieu du dos, les muscles ne sont pas seuls en cause : quand la colonne s'enroule, la moelle épinière et ses enveloppes s'allongent aussi, et un manque de mobilité de ces tissus peut se ressentir comme un tiraillement. Le comparer tête relâchée puis menton rentré aide à faire la différence : si la flexion avant est nettement plus courte menton rentré, la piste nerveuse est probable.</p>
+      <p>Plutôt que de forcer l'étirement, le programme fait bouger la colonne segment par segment (bascule du bassin, chat-vache, rotations, enroulé vertébral), étire doucement les lombaires, et ajoute des glissements neuraux : on tend la jambe en relevant la tête, puis on plie la jambe en rentrant le menton, pour faire coulisser le nerf sans le mettre en tension aux deux bouts. Une revue de 2017 trouve un effet favorable de ces mobilisations sur les douleurs chroniques du dos et du cou, avec des preuves encore limitées.</p>
+      <p>Le matin, les disques sont gorgés d'eau après la nuit et supportent moins bien les flexions marquées. Limiter la flexion dans l'heure qui suit le lever a réduit des douleurs lombaires chroniques dans un essai (Snook, 1998). D'où le conseil de faire la routine le soir. Quatre semaines, des doses qui montent chaque semaine, et des mesures les jours 1, 8, 15, 22 et 28. Ce programme est à part : il ne touche ni à ta série, ni à tes niveaux, ni à ton XP.</p>
+      <p><b>Consulte un médecin</b> si tu ressens une décharge électrique dans le dos ou les membres en baissant la tête, des fourmillements, un engourdissement ou une faiblesse, une douleur qui réveille la nuit, ou si la gêne augmente malgré des mouvements plus doux.</p>
       <h3>L'ordre des exercices</h3>
       <p>Échauffements, circuits et étirements sont rangés par position : d'abord debout, puis à genoux ou à quatre pattes, sur le ventre, assis et enfin sur le dos. Tu ne te relèves pas entre deux exercices au sol.</p>
       <h3>Pourquoi des crunchs</h3>
@@ -2364,6 +2557,8 @@ if (typeof module !== 'undefined') module.exports = Guide;
         <li>McGill S., Low Back Disorders, Human Kinetics.</li>
         <li>Thomas E. et coll., The relation between stretching typology and stretching duration: the effects on range of motion, International Journal of Sports Medicine, 2018.</li>
         <li>ACSM, Progression models in resistance training : 1 à 3 séries de 8 à 12 répétitions pour débuter.</li>
+        <li>Basson A. et coll., The effectiveness of neural mobilization for neuromusculoskeletal conditions: a systematic review and meta-analysis, Journal of Orthopaedic and Sports Physical Therapy, 2017.</li>
+        <li>Snook S. et coll., The reduction of chronic nonspecific low back pain through the control of early morning lumbar flexion, Spine, 1998.</li>
         <li>Behm D. et coll., Acute effects of muscle stretching on physical performance, range of motion, and injury incidence, Applied Physiology, Nutrition, and Metabolism, 2016.</li>
       </ul>
       <p class="small muted">Aube ne remplace pas un avis médical. Une douleur vive, une gêne dans la poitrine, un essoufflement inhabituel ou des nausées à chaque séance : arrête et consulte.</p></div>`;
@@ -2435,6 +2630,7 @@ if (typeof module !== 'undefined') module.exports = Guide;
       } else if (b.kind === 'circuit') {
         steps.push({ t: 'intro', b, bi });
         b.items.forEach((it, j) => {
+          if (it.mode === 'stretch') { steps.push({ t: 'stretch', b, bi, it, ii: j }); return; }
           for (let k = 0; k < it.sets; k++) {
             (it.mode !== 'reps' && it.uni ? [1, 2] : [0]).forEach(side => steps.push({ t: 'cset', b, bi, it, j, k, side, of: b.items.length }));
             if (k < it.sets - 1) steps.push({ t: 'rest', b, bi, sec: it.rest, next: `Série ${k + 2} sur ${it.sets} : ${doseShort(it, false)}`, nextId: it.id });
@@ -2537,7 +2733,12 @@ if (typeof module !== 'undefined') module.exports = Guide;
   function stepIntro(s) {
     const b = s.b;
     let body, sub = '';
-    if (b.kind === 'circuit') {
+    if (b.kind === 'circuit' && b.role === 'back') {
+      body = `<span class="pname">${esc(b.title)}</span><p class="phow">${b.items.length} mouvements doux, du sol vers la position debout. Vise une tension de 3 ou 4 sur 10 : un étirement net, jamais une douleur. Expire dans les moments où ça tire. Les étirements attendent ton Go et le chrono ne passe jamais tout seul.</p>
+        <p class="small muted"><b>Arrête et consulte</b> en cas de décharge électrique, de fourmillements ou d'engourdissement dans les bras ou les jambes, ou si la douleur augmente d'un jour à l'autre.</p>
+        <ul class="result-list">${b.items.map(it => `<li><span><b>${esc(it.name)}</b></span>${guideLink(it.id, 'Voir')}<span class="detail">${esc(A.posLabel(it.id))}, ${esc(doseShort(it, true))}</span></li>`).join('')}</ul>`;
+      say(b.title);
+    } else if (b.kind === 'circuit') {
       const mod = b.role === 'module', it0 = b.items[0];
       body = `<span class="pname">${esc(b.title)}</span><p class="phow">${mod ? `${b.items.length} exercices, ${it0.sets > 1 ? it0.sets + ' séries chacun' : 'une série chacun'}. Fais les répétitions à ton rythme, puis appuie sur « C'est fait ». Rythme modéré : tu dois pouvoir dire quelques mots. Nausée, vertige ou douleur : arrête-toi.` : 'On commence doucement. Fais les répétitions à ton rythme ; les exercices chronométrés démarrent quand tu appuies sur Go.'}</p>
         <ul class="result-list">${b.items.map(it => `<li><span><b>${esc(it.name)}</b></span>${guideLink(it.id, 'Voir')}<span class="detail">${esc(A.posLabel(it.id))}, ${esc(doseShort(it, true))}${it.note && !it.uni ? ' (' + esc(it.note) + ')' : ''}</span></li>`).join('')}</ul>`;
@@ -2692,18 +2893,19 @@ if (typeof module !== 'undefined') module.exports = Guide;
     if (!P.sub || P.sub.mode !== 'stretch') P.sub = { mode: 'stretch', phase: 'prep', side: 1 };
     const sub = P.sub;
     const sideTxt = it.uni ? (sub.side === 1 ? 'premier côté' : 'deuxième côté') : '';
-    const subt = `Étirement ${s.ii + 1} sur ${n}${sideTxt ? ', ' + sideTxt : ''}`;
+    const inCirc = b.kind === 'circuit';
+    const subt = `${inCirc ? 'Exercice' : 'Étirement'} ${s.ii + 1} sur ${n}${sideTxt ? ', ' + sideTxt : ''}`;
     if (sub.phase === 'prep') {
       chrome(b.title, subt,
         `<span class="pname">${esc(it.name)}</span>${Guide.svg(it.id, { anim: true, cls: 'pfig' })}
          <div class="row" style="justify-content:center;flex-wrap:wrap;gap:6px"><span class="chip">${esc(A.posLabel(it.id))}</span>${it.uni ? `<span class="chip sun">${sub.side === 1 ? 'Premier côté' : 'Deuxième côté'}</span>` : ''}<span class="chip teal">repère ${it.hold} s</span></div>
          <p class="phow">${sub.side === 2 ? 'Change de côté et installe-toi, puis appuie sur Go.' : esc(it.how)} ${guideLink(it.id, 'Détails')}</p>`,
-        `<button class="btn btn-sun btn-block btn-go" data-act="p-go">Go</button><button class="link" data-act="p-sskip">Passer cet étirement</button>`);
+        `<button class="btn btn-sun btn-block btn-go" data-act="p-go">Go</button><button class="link" data-act="p-sskip">${inCirc ? 'Passer cet exercice' : 'Passer cet étirement'}</button>`);
       say(sub.side === 2 ? 'Deuxième côté.' : it.name);
       return;
     }
     const circ = 2 * Math.PI * 46;
-    const btn = it.uni && sub.side === 1 ? 'Deuxième côté' : s.ii === n - 1 ? 'Terminer la souplesse' : 'Étirement suivant';
+    const btn = it.uni && sub.side === 1 ? 'Deuxième côté' : s.ii === n - 1 ? (inCirc ? 'Terminer' : 'Terminer la souplesse') : (inCirc ? 'Exercice suivant' : 'Étirement suivant');
     chrome(b.title, subt,
       `<span class="pname">${esc(it.name)}</span>${Guide.svg(it.id, { anim: true, cls: 'pfig-s' })}
        <div class="ring"><svg viewBox="0 0 100 100"><circle class="track" cx="50" cy="50" r="46"/><circle id="t-arc" class="arc" cx="50" cy="50" r="46" stroke-dasharray="${circ.toFixed(1)}" stroke-dashoffset="${circ.toFixed(1)}"/></svg><span id="t-num" class="num">${it.hold}</span></div>
@@ -2730,18 +2932,21 @@ if (typeof module !== 'undefined') module.exports = Guide;
     draw(); P.timer = setInterval(draw, 200);
   }
   function stepFlex(s) {
-    const f = A.FT[s.key];
+    const isBack = s.b.role === 'backtest';
+    const f = (isBack ? A.BT : A.FT)[s.key];
     if (!P.sub || P.sub.mode !== 'flex') {
-      const prev = (S.flexTests || []).filter(x => Number.isFinite(x[s.key])).slice(-1)[0];
-      P.sub = { mode: 'flex', value: prev ? prev[s.key] : f.def };
+      const prev = ((isBack ? (S.back || {}).tests : S.flexTests) || []).filter(x => Number.isFinite(x[s.key])).slice(-1)[0];
+      P.sub = { mode: 'flex', value: prev ? prev[s.key] : f.def, max: f.max };
     }
-    const v = P.sub.value;
+    const v = P.sub.value, cm = (f.unit || 'cm') === 'cm';
+    const hint = cm ? `${esc(f.short)}, en centimètres. ${f.better === 'up' ? 'Plus c\'est grand, plus tu es souple.' : 'Plus c\'est petit, plus tu es souple.'}` : '0 = aucune gêne, 10 = très fort. Note la sensation, pas la distance.';
+    const first = s.ii === 0 ? (isBack ? ' Les deux mesures suivantes demandent un mètre ruban ou une règle. Tout est facultatif.' : ' Il te faut un mètre ruban ou une règle. Le bilan est facultatif.') : '';
     chrome(s.b.title, `Mesure ${s.ii + 1} sur ${s.b.items.length}`,
       `${Guide.svg(f.fig, { anim: true, cls: 'pfig-s' })}<span class="pname">${esc(f.name)}</span><p class="phow">${esc(f.how)}</p>
        <div class="stepper"><button data-act="p-adj" data-d="-5">−5</button><button data-act="p-adj" data-d="-1">−1</button><span class="num" id="entry-num">${v}</span><button data-act="p-adj" data-d="1">+1</button><button data-act="p-adj" data-d="5">+5</button></div>
-       <p class="small muted">${esc(f.short)}, en centimètres. ${f.better === 'up' ? 'Plus c\'est grand, plus tu es souple.' : 'Plus c\'est petit, plus tu es souple.'}${s.ii === 0 ? ' Il te faut un mètre ruban ou une règle. Le bilan est facultatif.' : ''}</p>`,
-      `<button class="btn btn-sun btn-block" data-act="p-validate">Valider <span id="entry-btn">${v}</span> cm</button><div class="row"><button class="btn btn-quiet grow btn-s" data-act="p-fskip">Passer cette mesure</button><button class="btn btn-ghost grow btn-s" data-act="p-skipblock">Passer le bilan</button></div>`);
-    if (s.ii === 0) say('Bilan souplesse.');
+       <p class="small muted">${hint}${first}</p>`,
+      `<button class="btn btn-sun btn-block" data-act="p-validate">Valider <span id="entry-btn">${v}</span> ${cm ? 'cm' : 'sur 10'}</button><div class="row"><button class="btn btn-quiet grow btn-s" data-act="p-fskip">Passer cette mesure</button><button class="btn btn-ghost grow btn-s" data-act="p-skipblock">${isBack ? 'Passer les mesures' : 'Passer le bilan'}</button></div>`);
+    if (s.ii === 0) say(isBack ? 'Mesures du dos.' : 'Bilan souplesse.');
   }
   function setCounterLabel(ex) { return ex === 'crunch' ? 'Compter au rythme' : 'Compter avec le nez'; }
   function stepSet(s) {
@@ -2890,6 +3095,11 @@ if (typeof module !== 'undefined') module.exports = Guide;
       if (r.summary) { S = r.state; S.flexIntroSeen = true; save(); }
       return showFlexResults(r.summary);
     }
+    if (P.plan.kind === 'back') {
+      const r = A.recordBack(S, P.plan.date || k, { durSec: (Date.now() - P.t0) / 1000, stretch: P.log.stretch, circuit: P.log.circuit, flex: P.log.flex });
+      S = r.state; save();
+      return showBackResults(r.summary);
+    }
     const before = A.playerLevel(A.totalXp(S));
     const log = { date: k, startedAt: P.startedAt, completedAt: new Date().toISOString(), durSec: Math.round((Date.now() - P.t0) / 1000), feeling: P.feeling || 2, pain: P.pain, light: !!P.plan.light, sets: P.log.sets, intervals: P.log.intervals, tests: P.plan.kind === 'test' ? P.log.tests : null, stretch: P.log.stretch, flex: P.log.flex, circuit: P.log.circuit, cfeel: P.cfeel || null };
     const r = A.applySession(S, P.plan, log);
@@ -2917,6 +3127,38 @@ if (typeof module !== 'undefined') module.exports = Guide;
         <p class="small muted">Le bilan revient pendant chaque test, toutes les 4 semaines. Tu peux aussi le refaire quand tu veux depuis l'onglet Progrès.</p>
       </div><div class="pfoot"><button class="btn btn-sun btn-block" data-act="p-close">Fermer</button></div>`;
     chime(); if (sum && sum.badges.length) setTimeout(confetti, 250);
+    wakeOff();
+  }
+  function backRows(tests) {
+    return Object.keys(tests.vals).map(key => {
+      const f = A.BT[key], v = tests.vals[key], pv = tests.prev[key], fv = tests.first[key];
+      const u = f.unit === 'cm' ? ' cm' : ' sur 10';
+      let det = 'Point de départ enregistré.';
+      if (fv !== undefined) {
+        const g = fv - v;
+        det = key === 'pull'
+          ? (g > 0 ? `${g} point${g > 1 ? 's' : ''} de moins qu'au départ (${fv}).` : g < 0 ? `Plus fort qu'au départ (${fv}). Réduis l'amplitude des mouvements.` : `Comme au départ (${fv}).`)
+          : (g > 0 ? `${g} cm gagnés depuis le départ (${fv} cm).` : g < 0 ? `${-g} cm de moins qu'au départ. Ça varie d'un jour à l'autre.` : 'Comme au départ.');
+        if (pv !== undefined && pv !== fv) det += ` Dernière mesure : ${pv}${u}.`;
+      }
+      return `<li><b>${esc(f.name)}</b><span class="num" style="font-size:1.6rem">${v}${f.unit === 'cm' ? ' cm' : '/10'}</span><span class="detail">${esc(det)}</span></li>`;
+    }).join('');
+  }
+  function showBackResults(sum) {
+    const el = $('#player'); el.className = '';
+    const day = sum ? sum.day : 0, last = day >= A.BACK_DAYS;
+    const nextTest = [1, 8, 15, 22, 28].find(d => d > day);
+    el.innerHTML = `<div class="ptop"><div class="grow"><span class="ptitle">Routine dos faite</span><span class="psub">${fmtMin(Math.round((Date.now() - P.t0) / 1000))}</span></div></div>
+      <div class="pbody" style="justify-content:flex-start;padding-top:24px">
+        <span class="pname">${last ? 'Programme dos terminé' : `Jour ${day} sur ${A.BACK_DAYS}`}</span>
+        ${sum && sum.warn ? `<div class="banner rose" style="text-align:left"><span class="bar"></span><p class="grow"><b>Le tiraillement est fort ou augmente.</b> <span class="small">Fais les mouvements plus petits et plus lents pendant quelques jours. S'il persiste, réveille la nuit, ou s'accompagne de fourmillements ou de décharges, fais-toi examiner par un médecin ou un kiné.</span></p></div>` : ''}
+        <ul class="result-list">
+          <li><b>Routines faites</b><span class="num" style="font-size:1.6rem">${sum ? sum.done : 0}</span><span class="detail">Sans effet sur ta série ni tes niveaux : ce programme est à part.</span></li>
+          ${sum && sum.tests ? backRows(sum.tests) : ''}
+        </ul>
+        <p class="small muted">${last ? 'Compare tes mesures dans l\'onglet Progrès. Tu peux recommencer 4 semaines ou arrêter depuis l\'accueil.' : nextTest ? `Prochaines mesures : jour ${nextTest}.` : ''} Le soir, ou au moins une heure après le lever, la colonne est plus souple.</p>
+      </div><div class="pfoot"><button class="btn btn-sun btn-block" data-act="p-close">Fermer</button></div>`;
+    chime(); say(last ? 'Programme dos terminé. Bravo.' : 'Routine dos terminée.');
     wakeOff();
   }
   const CWHY = {
@@ -2990,6 +3232,10 @@ if (typeof module !== 'undefined') module.exports = Guide;
       case 'start-flex': startSession(A.flexPlan(S, today())); break;
       case 'flexcheck': closeSheet(); startSession(A.flexCheckPlan(today())); break;
       case 'flexintro-hide': S.flexIntroSeen = true; save(); render(); break;
+      case 'start-back': { const z = $('#back-set'); S = A.startBack(S, today()); S.backIntroSeen = true; save(); if (z) z.innerHTML = '<h3>Programme dos</h3>' + backSettingsHTML(); render(); toast('Programme dos lancé : jour 1 sur ' + A.BACK_DAYS); break; }
+      case 'stop-back': { const z = $('#back-set'); S = A.stopBack(S, today()); save(); if (z) z.innerHTML = '<h3>Programme dos</h3>' + backSettingsHTML(); render(); toast('Programme dos arrêté. Tes mesures restent dans Progrès.'); break; }
+      case 'backintro-hide': S.backIntroSeen = true; save(); render(); break;
+      case 'start-back-routine': startSession(A.backPlan(S, today())); break;
       case 'start-today': startSession(A.planDay(S, today(), { today: true, light: lightToday })); break;
       case 'settings': openSheet(settingsHTML()); bindSettings(); if (t.dataset.focus) { const el = $('#' + t.dataset.focus); if (el) el.scrollIntoView(); } break;
       case 'close-sheet': closeSheet(); render(); break;
@@ -3050,7 +3296,7 @@ if (typeof module !== 'undefined') module.exports = Guide;
       case 'p-cskip': next(); break;
       case 'p-count': openCounter(); break;
       case 'p-entry': { const s = cur(); P.sub = { mode: 'entry', value: s.t === 'set' ? (s.s.isMax ? s.s.min : Math.max(0, s.s.target - 1)) : s.t === 'cset' ? Math.max(0, s.it.target - 1) : 0 }; s.t === 'cset' ? stepCset(s) : showStep(); break; }
-      case 'p-adj': { P.sub.value = Math.max(0, P.sub.value + parseInt(t.dataset.d, 10)); const n = $('#entry-num'); if (n) n.textContent = P.sub.value; const b = $('#entry-btn'); if (b) b.textContent = P.sub.value; break; }
+      case 'p-adj': { P.sub.value = Math.min(P.sub.max || Infinity, Math.max(0, P.sub.value + parseInt(t.dataset.d, 10))); const n = $('#entry-num'); if (n) n.textContent = P.sub.value; const b = $('#entry-btn'); if (b) b.textContent = P.sub.value; break; }
       case 'p-validate': { const v = P.sub.value; P.sub = null; recordSet(cur(), v); break; }
       case 'p-feel': P.feeling = parseInt(t.dataset.v, 10); P.pain = !!($('#pain') || {}).checked; stepFeeling(); break;
       case 'p-cfeel': P.cfeel = parseInt(t.dataset.v, 10); P.pain = !!($('#pain') || {}).checked; stepFeeling(); break;
@@ -3092,7 +3338,7 @@ if (typeof module !== 'undefined') module.exports = Guide;
     const run = loadRun();
     if (run) {
       const fresh = run.date === today() && Date.now() - (run.savedAt || 0) < 4 * 3600e3;
-      const alreadyDone = run.plan.kind !== 'flexcheck' && A.sessionOn(S, run.date);
+      const alreadyDone = run.plan.kind === 'back' ? A.backStatus(S, run.date).doneToday : run.plan.kind !== 'flexcheck' && A.sessionOn(S, run.date);
       if (fresh && !alreadyDone) { resumeRun(run); toast('Séance reprise là où tu l\'avais laissée'); }
       else clearRun();
     }

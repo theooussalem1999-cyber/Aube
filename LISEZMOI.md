@@ -67,9 +67,18 @@ Les données sont stockées dans le navigateur du téléphone. Elles ne sont eff
 
 Le détail et les sources sont dans l'appli : **Réglages > La méthode et les sources**.
 
+## Le programme dos (provisoire)
+
+Un programme à part, de 4 semaines, pour assouplir la colonne et calmer le tiraillement au milieu du dos quand tu rentres le menton. Il se lance depuis l'accueil ou **Réglages > Programme dos**, et s'arrête au même endroit.
+
+- **Une routine par jour, environ 7 à 12 minutes**, de préférence le soir (ou au moins une heure après le lever) : bascule du bassin, genoux poitrine, torsion allongée, cobra, posture de l'enfant, chat-vache, rotation à quatre pattes, glissements neuraux sur une chaise, enroulé vertébral. Les doses montent chaque semaine.
+- **Mesures les jours 1, 8, 15, 22 et 28** : le tiraillement de 0 à 10, la flexion avant tête relâchée et menton rentré. Les résultats sont dans l'onglet **Progrès**, section « Dos ».
+- **Il ne touche à rien d'autre** : ni la série, ni les niveaux, ni l'XP, ni les séances du matin.
+- Si le tiraillement monte à 7 sur 10 ou augmente, l'appli conseille de réduire l'amplitude. Décharge électrique en baissant la tête, fourmillements, engourdissement, faiblesse ou douleur la nuit : consulte un médecin.
+
 ## Le guide des gestes
 
-L'onglet **Gestes** présente les 43 exercices du programme avec une animation, les muscles travaillés, les points clés, les erreurs fréquentes, une version plus facile et une plus difficile. Pendant la séance, l'animation de l'exercice en cours s'affiche à l'écran, et le lien « Détails » ouvre la fiche complète.
+L'onglet **Gestes** présente les 54 exercices du programme avec une animation, les muscles travaillés, les points clés, les erreurs fréquentes, une version plus facile et une plus difficile. Pendant la séance, l'animation de l'exercice en cours s'affiche à l'écran, et le lien « Détails » ouvre la fiche complète.
 
 ## Modifier l'appli plus tard
 
