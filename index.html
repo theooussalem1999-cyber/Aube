@@ -411,7 +411,7 @@ body:has(#player:not([hidden])) #toast { top: calc(72px + env(safe-area-inset-to
 <canvas id="confetti" hidden></canvas>
 <div id="toast" hidden role="status" aria-live="polite"></div>
 <noscript><p style="padding:24px">Aube a besoin de JavaScript pour fonctionner.</p></noscript>
-<script>window.AUBE_VERSION = '1.4.1';
+<script>window.AUBE_VERSION = '1.5.0';
 /* ==========================================================================
    AUBE · moteur de programme (pur, sans DOM)
    Toute la logique d'entraînement, d'adaptation et de récompense vit ici.
@@ -630,6 +630,25 @@ const Aube = (() => {
     v = d.mode === 'reps' ? clamp(Math.round(v), 2, d.max) : clamp(Math.round(v / 5) * 5, 10, d.max);
     return { id, name: LIB[id][0], how: LIB[id][1], mode: d.mode, target: v, uni: !!d.uni, note: d.note || '', spr: d.spr || 0, cat, sets, rest: C_REST };
   }
+  /* Gainage des jours de pompes : planche et gainage latéral, avec leur propre niveau.
+     Au départ, ce niveau reprend celui du circuit, où la planche était déjà dosée. */
+  const coreLevel = st => {
+    const l = st.levels || {};
+    return Number.isFinite(l.core) ? l.core : (l.circuit || 0);
+  };
+  function coreItem(st, id, sets) {
+    const d = DOSE[id];
+    const v = clamp(Math.round(d.base * Math.pow(C_RATIO, coreLevel(st)) / 5) * 5, 10, d.max);
+    return { id, name: LIB[id][0], how: LIB[id][1], mode: 'hold', target: v, uni: !!d.uni, note: '', spr: 0, cat: 'core', sets, rest: C_REST };
+  }
+  // les jours de gainage, la planche et le gainage latéral sortent du circuit pour ne pas faire double emploi
+  const CORE_IDS = ['plank', 'sideplank'];
+  const CORE_SWAP = ['birddog', 'superman', 'bridge', 'angels', 'bridge1', 'squatslow'];
+  function withoutCore(ids) {
+    const out = ids.filter(id => !CORE_IDS.includes(id));
+    CORE_SWAP.forEach(id => { if (out.length < ids.length && !out.includes(id)) out.push(id); });
+    return out;
+  }
   function warmItem(id) {
     const d = WDOSE[id];
     return { id, name: LIB[id][0], how: LIB[id][1], mode: d.mode, target: d.target, uni: !!d.uni, note: d.note || '', spr: d.spr || 0, cat: 'warm', sets: 1, rest: 0 };
@@ -647,7 +666,7 @@ const Aube = (() => {
     return {
       v: 1, createdAt: now, updatedAt: now,
       name: '',
-      settings: { theme: 'auto', voice: true, sound: true, vibrate: true, cadence: 1.6, reminder: '07:00', pushRappel: true, waitGo: 'warm', flexHold: 'auto', csets: 2, goals: { pushup: 100, crunch: 300 } },
+      settings: { theme: 'auto', voice: true, sound: true, vibrate: true, cadence: 1.6, reminder: '07:00', pushRappel: true, coreOnPush: true, waitGo: 'warm', flexHold: 'auto', csets: 2, goals: { pushup: 100, crunch: 300 } },
       startDate: null, anchor: null,
       pushVariant: 'standard',
       levels: { pushup: 0, knee: 0, crunch: 0, circuit: 0, cardio: 0 },
@@ -828,7 +847,16 @@ const Aube = (() => {
     const blocks = [warm, main];
     const flex = stretchBlock(st, k, W.theme, focus === 'crunch' ? 'crunch' : 'push');
     let used = circuitSeconds(warm) + setsSeconds(ex, sets) + stretchSeconds(flex);
-    const wantRappel = other === 'crunch' || st.settings.pushRappel !== false;
+    const wantCore = other === 'crunch' && st.settings.coreOnPush !== false;
+    const wantRappel = !wantCore && (other === 'crunch' || st.settings.pushRappel !== false);
+    if (!light && wantCore) {
+      const n = phase.id === 4 ? 1 : 2;
+      const core = { kind: 'circuit', role: 'core', title: 'Gainage', restBefore: 45, transition: 30,
+        blurb: 'Planche et gainage latéral : les abdos travaillent sans enrouler le dos, en alternance avec les jours de crunchs.',
+        items: CORE_IDS.map(id => coreItem(st, id, n)) };
+      blocks.push(core);
+      used += circuitSeconds(core) + 45;
+    }
     if (!light && wantRappel) {
       const rs = rappelSets(st, other, phase.id === 4 || phase.id === 0);
       const isC = other === 'crunch';
@@ -840,8 +868,9 @@ const Aube = (() => {
     const mod = MODULES[W.module];
     const nSets = light ? 1 : clamp(parseInt(st.settings.csets, 10) || 2, 1, 3);
     const variant = Math.floor(diffDays(mondayOf(st.startDate), k) / 7) % 2; // une semaine sur deux, l'autre série d'exercices
-    const ids = byPos(variant ? mod.alt : mod.items);
-    const cblock = { kind: 'circuit', role: 'module', module: W.module, title: mod.title, items: ids.map(id => circuitItem(st, id, nSets)), transition: C_TRANS, variant };
+    const coreDay = !light && wantCore;
+    const ids = byPos(coreDay ? withoutCore(variant ? mod.alt : mod.items) : (variant ? mod.alt : mod.items));
+    const cblock = { kind: 'circuit', role: 'module', module: W.module, title: coreDay ? mod.title.replace(' et gainage', ' et dos') : mod.title, items: ids.map(id => circuitItem(st, id, nSets)), transition: C_TRANS, variant };
     blocks.push(cblock);
     used += circuitSeconds(cblock);
     blocks.push(flex);
@@ -962,6 +991,20 @@ const Aube = (() => {
         st.levels[cat] = to;
         changes.push({ kind: 'circuit', cat, from: Lc, to, why: cwhy, completion: cc });
       });
+      // gainage : réglé par les positions tenues jusqu'au bout, sans question de plus
+      const cx = (log.circuit || []).filter(x => x.role === 'core');
+      if (cx.length) {
+        const tt = cx.reduce((a, x) => a + x.target, 0), dd = cx.reduce((a, x) => a + Math.min(x.done, x.target), 0);
+        const cc = tt ? dd / tt : 1, Lk = coreLevel(st), prog = (plan.blocks.find(b => b.role === 'main') || {}).progress;
+        let to = Lk, kwhy = 'stable';
+        if (log.pain) { to = Lk - 2; kwhy = 'douleur'; }
+        else if (cc < .8) { to = Lk - 1; kwhy = 'recul'; }
+        else if (cc >= .97 && prog && !log.light) { to = Lk + 1; kwhy = 'monte'; }
+        else if (prog && !log.light) kwhy = 'consolide';
+        to = clamp(to, -8, 25);
+        st.levels.core = to;
+        changes.push({ kind: 'circuit', cat: 'core', from: Lk, to, why: kwhy, completion: cc });
+      }
       const perfect = log.sets.every(s => s.isMax ? s.done >= s.min : s.done >= s.target);
       if (perfect) xp += 20;
       if (nl > L) xp += 15 * (nl - L);
@@ -1962,6 +2005,7 @@ if (typeof module !== 'undefined') module.exports = Guide;
         return `<li><span class="what">${esc(what)}</span><span class="dur">${fmtMin(blockSec(b))}</span><span class="detail">${names}<span class="pgroup">${tail}</span></span></li>`;
       }
       if (b.kind === 'circuit' && b.role === 'back') return `<li><span class="what">${esc(b.title)}</span><span class="dur">${fmtMin(blockSec(b))}</span><span class="detail">${groupedDose(b.items)}<span class="pgroup">Lentement, tension de 3 ou 4 sur 10. Les étirements attendent ton Go.</span></span></li>`;
+      if (b.kind === 'circuit' && b.role === 'core') { const it0 = b.items[0]; return `<li><span class="what">${esc(b.title)}</span><span class="dur">${fmtMin(blockSec(b))}</span><span class="detail">${groupedDose(b.items)}<span class="pgroup">${it0.sets > 1 ? `${it0.sets} séries chacun, ${it0.rest} s de repos entre deux. ` : ''}Les abdos travaillent sans enrouler le dos : les crunchs reviennent demain. Chaque position démarre quand tu appuies sur Go.</span></span></li>`; }
       if (b.kind === 'circuit') {
         const mod = b.role === 'module', it0 = b.items[0];
         const tail = mod ? `${it0.sets > 1 ? `${it0.sets} séries par exercice, ${it0.rest} s de repos entre deux. ` : ''}${b.transition} s pour préparer l'exercice suivant. Rythme modéré : tu dois pouvoir dire quelques mots.` : 'À ton rythme. Les exercices chronométrés démarrent quand tu appuies sur Go.';
@@ -2289,6 +2333,7 @@ if (typeof module !== 'undefined') module.exports = Guide;
     const bySets = r => s.sets.filter(x => x.role === r);
     const line = r => bySets(r).map(x => x.isMax ? `<span class="max">${x.done}</span>` : `<span>${x.done}${x.done < x.target ? '/' + x.target : ''}</span>`).join('');
     return `<div class="stack" style="gap:8px"><div class="setline">${line('main')}</div>
+      ${(s.circuit || []).some(x => x.role === 'core') ? `<p class="small muted">Gainage : ${(s.circuit || []).filter(x => x.role === 'core').map(x => fmtDur(x.done)).join(' + ')}</p>` : ''}
       ${bySets('rappel').length ? `<p class="small muted">Rappel : ${bySets('rappel').map(x => x.done).join(' + ')} ${bySets('rappel')[0].ex === 'crunch' ? 'crunchs' : 'pompes'}</p>` : ''}
       <p class="small muted">${feel ? 'Ressenti : ' + feel.toLowerCase() + '. ' : ''}${s.durSec ? 'Durée : ' + fmtMin(s.durSec) + '. ' : ''}${s.light ? 'Version allégée.' : ''}${s.pain ? ' Douleur signalée.' : ''}</p></div>`;
   }
@@ -2458,6 +2503,7 @@ if (typeof module !== 'undefined') module.exports = Guide;
         <div class="setting"><span>Coach vocal</span>${sw('voice', st.voice)}</div>
         <div class="setting"><span>Bips</span>${sw('sound', st.sound)}</div>
         <div class="setting"><span>Vibrations</span>${sw('vibrate', st.vibrate)}</div>
+        <div class="setting"><span class="grow">Gainage les jours de pompes<br><span class="xs muted">Planche et gainage latéral à la place des crunchs d'entretien, pour reposer le dos de la flexion un jour sur deux.</span></span>${sw('coreOnPush', st.coreOnPush !== false)}</div>
         <div class="setting"><span class="grow">Pompes légères les jours d'abdos<br><span class="xs muted">2 petites séries faciles. Désactive pour un repos complet des bras.</span></span>${sw('pushRappel', st.pushRappel !== false)}</div>
         <div class="setting"><span class="grow">Séries par exercice du circuit<br><span class="xs muted">Le nombre de répétitions s'adapte à tes réponses après chaque séance.</span></span>${seg('csets', [[1, '1'], [2, '2'], [3, '3']], st.csets || 2)}</div>
         <div class="setting"><span class="grow">Durée des étirements<br><span class="xs muted">Auto : de 30 s à 60 s au fil des cycles, ajustée selon ce que tu tiens vraiment.</span></span>${seg('flexHold', [['auto', 'Auto'], [30, '30 s'], [45, '45 s'], [60, '60 s']], st.flexHold || 'auto')}</div>
@@ -2511,7 +2557,7 @@ if (typeof module !== 'undefined') module.exports = Guide;
       <p>La première semaine compte déjà : chaque séance finit par une série au maximum, qui recale tout de suite le programme si ton test t'a sous-estimé. Après chaque séance, la question sur les pompes ou les crunchs ne règle que cet exercice, et celle sur le circuit ne règle que le circuit.</p>
       <p>Les grosses séances de pompes tombent les lundis, mercredis et vendredis, celles de crunchs les mardis, jeudis et samedis, comme dans les programmes de type « 100 pompes en 6 semaines ». Les crunchs continuent les autres jours en version modérée.</p>
       <h3>La récupération</h3>
-      <p>Un muscle progresse pendant qu'il récupère. L'ACSM recommande au moins 48 heures entre deux séances qui sollicitent fortement les mêmes muscles. Les grosses séances de pompes (lundi, mercredi, vendredi) sont donc toujours séparées de 48 heures, et de 72 heures du vendredi au lundi. Les jours d'abdos, deux petites séries très faciles entretiennent le geste sans gêner la récupération ; tu peux les désactiver dans les réglages. Les abdos travaillent tous les jours, mais en alternant jours durs et jours modérés. Le dimanche, repos complet.</p>
+      <p>Un muscle progresse pendant qu'il récupère. L'ACSM recommande au moins 48 heures entre deux séances qui sollicitent fortement les mêmes muscles. Les grosses séances de pompes (lundi, mercredi, vendredi) sont donc toujours séparées de 48 heures, et de 72 heures du vendredi au lundi. Les jours d'abdos, deux petites séries très faciles entretiennent le geste sans gêner la récupération ; tu peux les désactiver dans les réglages. Les abdos travaillent tous les jours, mais en alternant : crunchs les jours d'abdos, gainage (planche et gainage latéral) les jours de pompes. Le gainage renforce la sangle abdominale sans enrouler la colonne, ce qui limite le nombre de flexions répétées sur la semaine ; il a son propre niveau, qui monte quand tu tiens les positions jusqu'au bout. Le dimanche, repos complet.</p>
       <h3>Séries longues, repos courts</h3>
       <p>Pour l'endurance musculaire, l'American College of Sports Medicine recommande des répétitions nombreuses (plus de 15) avec des repos courts (moins de 90 secondes). Les séries sont calculées en pourcentage de ta capacité et les repos s'allongent quand les séries grandissent.</p>
       <h3>Trois formats qui alternent</h3>
@@ -2628,6 +2674,7 @@ if (typeof module !== 'undefined') module.exports = Guide;
           if (s.rest > 0) { const n = b.sets[si + 1]; steps.push({ t: 'rest', b, bi, sec: s.rest, nextId: b.ex, next: n ? (n.isMax ? 'Série au maximum' : n.target + ' ' + A.EX[b.ex].unit) : '' }); }
         });
       } else if (b.kind === 'circuit') {
+        if (b.restBefore) { const it0 = b.items[0]; steps.push({ t: 'rest', b, bi, sec: b.restBefore, next: it0.name, nextId: it0.id, nextIt: it0, nextN: 0, of: b.items.length }); }
         steps.push({ t: 'intro', b, bi });
         b.items.forEach((it, j) => {
           if (it.mode === 'stretch') { steps.push({ t: 'stretch', b, bi, it, ii: j }); return; }
@@ -2736,6 +2783,11 @@ if (typeof module !== 'undefined') module.exports = Guide;
     if (b.kind === 'circuit' && b.role === 'back') {
       body = `<span class="pname">${esc(b.title)}</span><p class="phow">${b.items.length} mouvements doux, du sol vers la position debout. Vise une tension de 3 ou 4 sur 10 : un étirement net, jamais une douleur. Expire dans les moments où ça tire. Les étirements attendent ton Go et le chrono ne passe jamais tout seul.</p>
         <p class="small muted"><b>Arrête et consulte</b> en cas de décharge électrique, de fourmillements ou d'engourdissement dans les bras ou les jambes, ou si la douleur augmente d'un jour à l'autre.</p>
+        <ul class="result-list">${b.items.map(it => `<li><span><b>${esc(it.name)}</b></span>${guideLink(it.id, 'Voir')}<span class="detail">${esc(A.posLabel(it.id))}, ${esc(doseShort(it, true))}</span></li>`).join('')}</ul>`;
+      say(b.title);
+    } else if (b.kind === 'circuit' && b.role === 'core') {
+      const it0 = b.items[0];
+      body = `<span class="pname">${esc(b.title)}</span><p class="phow">Planche puis gainage latéral, ${it0.sets > 1 ? it0.sets + ' séries chacun' : 'une série chacun'}. Les abdos travaillent sans enrouler le dos, en alternance avec les jours de crunchs. Corps aligné, fesses serrées, respire normalement. Chaque position démarre quand tu appuies sur Go ; si tu lâches avant la fin, appuie sur le bouton : le gainage s'adapte.</p>
         <ul class="result-list">${b.items.map(it => `<li><span><b>${esc(it.name)}</b></span>${guideLink(it.id, 'Voir')}<span class="detail">${esc(A.posLabel(it.id))}, ${esc(doseShort(it, true))}</span></li>`).join('')}</ul>`;
       say(b.title);
     } else if (b.kind === 'circuit') {
@@ -2857,7 +2909,7 @@ if (typeof module !== 'undefined') module.exports = Guide;
       return;
     }
     chrome(b.title, subt, `<span class="pname">${esc(it.name)}</span>${Guide.svg(it.id, { anim: true, cls: 'pfig' })}<span id="t-num" class="giant mid">${it.target}</span><div class="tbar"><i id="t-bar" style="width:0%"></i></div>
-      <p class="phow">${it.mode === 'hold' ? 'Tiens la position et respire. Si tu lâches avant, appuie sur le bouton : le circuit s\'adapte.' : esc(it.how)}</p>`,
+      <p class="phow">${it.mode === 'hold' ? `Tiens la position et respire. Si tu lâches avant, appuie sur le bouton : ${b.role === 'core' ? 'le gainage' : 'le circuit'} s'adapte.` : esc(it.how)}</p>`,
       `<button class="btn btn-quiet btn-block" data-act="p-cstop">${it.mode === 'hold' ? 'J\'ai lâché' : 'Terminer'}</button>`);
     const draw = () => {
       const el = (Date.now() - sub.start) / 1000, left = it.target - el, secs = Math.ceil(Math.max(0, left));
@@ -3161,6 +3213,10 @@ if (typeof module !== 'undefined') module.exports = Guide;
     chime(); say(last ? 'Programme dos terminé. Bravo.' : 'Routine dos terminée.');
     wakeOff();
   }
+  const KWHY = {
+    monte: 'Positions tenues jusqu\'au bout : 5 à 10 s de plus la prochaine fois.', consolide: 'Presque tout tenu : même durée la prochaine fois.',
+    recul: 'Tu as lâché plus tôt : la durée baisse un peu.', douleur: 'Douleur signalée : le gainage baisse de deux crans.', stable: 'Semaine allégée : même durée la prochaine fois.'
+  };
   const CWHY = {
     saut: 'Facile : le circuit monte de deux crans.', monte: 'Le circuit monte d\'un cran.', consolide: 'Dur : même dose la prochaine fois.',
     recul: 'Trop dur : le circuit baisse nettement. Va à ton rythme, quitte à ralentir.', douleur: 'Douleur signalée : le circuit baisse de deux crans.', stable: 'Séance allégée : même dose la prochaine fois.'
@@ -3186,7 +3242,7 @@ if (typeof module !== 'undefined') module.exports = Guide;
       } else {
         if (c.kind === 'circuit') {
           const pct = Math.round((Math.pow(1.07, c.to - c.from) - 1) * 100);
-          items.push(`<li><b>${c.cat === 'cardio' ? 'Cardio' : 'Circuit'}</b><span class="num" style="font-size:1.6rem">${pct > 0 ? '+' + pct + ' %' : pct < 0 ? pct + ' %' : '='}</span><span class="detail">${esc(CWHY[c.why] || '')}</span></li>`);
+          items.push(`<li><b>${c.cat === 'cardio' ? 'Cardio' : c.cat === 'core' ? 'Gainage' : 'Circuit'}</b><span class="num" style="font-size:1.6rem">${pct > 0 ? '+' + pct + ' %' : pct < 0 ? pct + ' %' : '='}</span><span class="detail">${esc((c.cat === 'core' ? KWHY : CWHY)[c.why] || '')}</span></li>`);
           return;
         }
         items.push(`<li><b>${esc(A.EX[c.ex].name)}</b><span class="num" style="font-size:1.6rem">${c.to > c.from ? 'niv. ' + c.from + ' → ' + c.to : 'niv. ' + c.to}</span><span class="detail">${esc(WHY[c.why] || '')}</span></li>`);
