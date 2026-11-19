@@ -411,7 +411,7 @@ body:has(#player:not([hidden])) #toast { top: calc(72px + env(safe-area-inset-to
 <canvas id="confetti" hidden></canvas>
 <div id="toast" hidden role="status" aria-live="polite"></div>
 <noscript><p style="padding:24px">Aube a besoin de JavaScript pour fonctionner.</p></noscript>
-<script>window.AUBE_VERSION = '1.5.0';
+<script>window.AUBE_VERSION = '1.5.1';
 /* ==========================================================================
    AUBE · moteur de programme (pur, sans DOM)
    Toute la logique d'entraînement, d'adaptation et de récompense vit ici.
@@ -636,9 +636,12 @@ const Aube = (() => {
     const l = st.levels || {};
     return Number.isFinite(l.core) ? l.core : (l.circuit || 0);
   };
+  // plafonds : au-delà, mieux vaut une position parfaite que tenir plus longtemps
+  const CORE_MAX = { plank: 60, sideplank: 45 };
+  const CORE_TOP = 17; // niveau où les deux plafonds sont atteints (20 s et 15 s × 1,07^17 ≈ ×3)
   function coreItem(st, id, sets) {
     const d = DOSE[id];
-    const v = clamp(Math.round(d.base * Math.pow(C_RATIO, coreLevel(st)) / 5) * 5, 10, d.max);
+    const v = clamp(Math.round(d.base * Math.pow(C_RATIO, coreLevel(st)) / 5) * 5, 10, CORE_MAX[id] || d.max);
     return { id, name: LIB[id][0], how: LIB[id][1], mode: 'hold', target: v, uni: !!d.uni, note: '', spr: 0, cat: 'core', sets, rest: C_REST };
   }
   // les jours de gainage, la planche et le gainage latéral sortent du circuit pour ne pas faire double emploi
@@ -995,13 +998,18 @@ const Aube = (() => {
       const cx = (log.circuit || []).filter(x => x.role === 'core');
       if (cx.length) {
         const tt = cx.reduce((a, x) => a + x.target, 0), dd = cx.reduce((a, x) => a + Math.min(x.done, x.target), 0);
-        const cc = tt ? dd / tt : 1, Lk = coreLevel(st), prog = (plan.blocks.find(b => b.role === 'main') || {}).progress;
+        const cc = tt ? dd / tt : 1, Lk = coreLevel(st), K = log.kfeel || 2;
+        const prog = (plan.blocks.find(b => b.role === 'main') || {}).progress && !log.light;
+        // tenir jusqu'au bout ne suffit pas : on ne monte que si c'était facile ou juste bien
         let to = Lk, kwhy = 'stable';
         if (log.pain) { to = Lk - 2; kwhy = 'douleur'; }
-        else if (cc < .8) { to = Lk - 1; kwhy = 'recul'; }
-        else if (cc >= .97 && prog && !log.light) { to = Lk + 1; kwhy = 'monte'; }
-        else if (prog && !log.light) kwhy = 'consolide';
-        to = clamp(to, -8, 25);
+        else if (cc < .8) { to = Lk - (K === 4 ? 2 : 1); kwhy = 'recul'; }
+        else if (K === 4) { to = Lk - 1; kwhy = 'recul'; }
+        else if (!prog) kwhy = 'stable';
+        else if (K === 3 || cc < .97) kwhy = 'consolide';
+        else if (Lk >= CORE_TOP) kwhy = 'plafond';
+        else { to = Lk + (K === 1 ? 2 : 1); kwhy = K === 1 ? 'saut' : 'monte'; }
+        to = clamp(to, -8, CORE_TOP);
         st.levels.core = to;
         changes.push({ kind: 'circuit', cat: 'core', from: Lk, to, why: kwhy, completion: cc });
       }
@@ -1025,7 +1033,7 @@ const Aube = (() => {
       feeling: log.feeling || null, pain: !!log.pain, sets: log.sets || [], intervals: log.intervals || 0,
       tests: log.tests || null, perfect: !!log.perfect, gap,
       levelsBefore: before, levelsAfter: Object.assign({}, st.levels), prs,
-      stretch, stretchSec, flex: flex ? flex.vals : null, circuit, cfeel: log.cfeel || null
+      stretch, stretchSec, flex: flex ? flex.vals : null, circuit, cfeel: log.cfeel || null, kfeel: log.kfeel || null
     };
     st.sessions = st.sessions.filter(s => s.date !== today);
     st.sessions.push(rec);
@@ -2557,7 +2565,7 @@ if (typeof module !== 'undefined') module.exports = Guide;
       <p>La première semaine compte déjà : chaque séance finit par une série au maximum, qui recale tout de suite le programme si ton test t'a sous-estimé. Après chaque séance, la question sur les pompes ou les crunchs ne règle que cet exercice, et celle sur le circuit ne règle que le circuit.</p>
       <p>Les grosses séances de pompes tombent les lundis, mercredis et vendredis, celles de crunchs les mardis, jeudis et samedis, comme dans les programmes de type « 100 pompes en 6 semaines ». Les crunchs continuent les autres jours en version modérée.</p>
       <h3>La récupération</h3>
-      <p>Un muscle progresse pendant qu'il récupère. L'ACSM recommande au moins 48 heures entre deux séances qui sollicitent fortement les mêmes muscles. Les grosses séances de pompes (lundi, mercredi, vendredi) sont donc toujours séparées de 48 heures, et de 72 heures du vendredi au lundi. Les jours d'abdos, deux petites séries très faciles entretiennent le geste sans gêner la récupération ; tu peux les désactiver dans les réglages. Les abdos travaillent tous les jours, mais en alternant : crunchs les jours d'abdos, gainage (planche et gainage latéral) les jours de pompes. Le gainage renforce la sangle abdominale sans enrouler la colonne, ce qui limite le nombre de flexions répétées sur la semaine ; il a son propre niveau, qui monte quand tu tiens les positions jusqu'au bout. Le dimanche, repos complet.</p>
+      <p>Un muscle progresse pendant qu'il récupère. L'ACSM recommande au moins 48 heures entre deux séances qui sollicitent fortement les mêmes muscles. Les grosses séances de pompes (lundi, mercredi, vendredi) sont donc toujours séparées de 48 heures, et de 72 heures du vendredi au lundi. Les jours d'abdos, deux petites séries très faciles entretiennent le geste sans gêner la récupération ; tu peux les désactiver dans les réglages. Les abdos travaillent tous les jours, mais en alternant : crunchs les jours d'abdos, gainage (planche et gainage latéral) les jours de pompes. Le gainage renforce la sangle abdominale sans enrouler la colonne, ce qui limite le nombre de flexions répétées sur la semaine ; il a son propre niveau, réglé par une question à part en fin de séance : il ne monte que si c'était facile ou juste bien, jamais simplement parce que tu as tenu, pour que tu ne finisses pas chaque séance au bord de la rupture, bassin qui s'affaisse. Il plafonne à 1 minute de planche et 45 secondes par côté : au-delà, mieux vaut une position parfaite que tenir plus longtemps. Le dimanche, repos complet.</p>
       <h3>Séries longues, repos courts</h3>
       <p>Pour l'endurance musculaire, l'American College of Sports Medicine recommande des répétitions nombreuses (plus de 15) avec des repos courts (moins de 90 secondes). Les séries sont calculées en pourcentage de ta capacité et les repos s'allongent quand les séries grandissent.</p>
       <h3>Trois formats qui alternent</h3>
@@ -2706,7 +2714,7 @@ if (typeof module !== 'undefined') module.exports = Guide;
     try {
       const steps = P.steps.map(st => { const o = Object.assign({}, st); delete o.b; return o; });
       const sub = P.sub && P.sub.mode === 'stretch' ? { mode: 'stretch', phase: 'prep', side: P.sub.side } : null;
-      localStorage.setItem(RUNKEY, JSON.stringify({ v: 1, date: P.plan.date, savedAt: Date.now(), plan: P.plan, steps, i: P.i, log: P.log, startedAt: P.startedAt, t0: P.t0, feeling: P.feeling, cfeel: P.cfeel, pain: P.pain, kneeAdded: !!P.kneeAdded, sub }));
+      localStorage.setItem(RUNKEY, JSON.stringify({ v: 1, date: P.plan.date, savedAt: Date.now(), plan: P.plan, steps, i: P.i, log: P.log, startedAt: P.startedAt, t0: P.t0, feeling: P.feeling, cfeel: P.cfeel, kfeel: P.kfeel, pain: P.pain, kneeAdded: !!P.kneeAdded, sub }));
     } catch (e) { /* stockage plein ou indisponible */ }
   }
   function clearRun() { try { localStorage.removeItem(RUNKEY); } catch (e) { /* rien */ } }
@@ -2718,7 +2726,7 @@ if (typeof module !== 'undefined') module.exports = Guide;
     // un chrono interrompu repart de son écran Go, ou du début de l'exercice
     if (steps[i] && steps[i].t === 'work' && steps[i - 1] && steps[i - 1].t === 'ready') i--;
     if (!r.log.circuit) r.log.circuit = [];
-    P = { plan, steps, i, log: r.log, startedAt: r.startedAt, t0: r.t0, timer: null, endAt: 0, paused: false, remain: 0, sub: r.sub, feeling: r.feeling || 0, cfeel: r.cfeel || 0, pain: !!r.pain, kneeAdded: !!r.kneeAdded };
+    P = { plan, steps, i, log: r.log, startedAt: r.startedAt, t0: r.t0, timer: null, endAt: 0, paused: false, remain: 0, sub: r.sub, feeling: r.feeling || 0, cfeel: r.cfeel || 0, kfeel: r.kfeel || 0, pain: !!r.pain, kneeAdded: !!r.kneeAdded };
     $('#player').hidden = false; document.body.style.overflow = 'hidden';
     wakeOn();
     showStep();
@@ -3126,14 +3134,16 @@ if (typeof module !== 'undefined') module.exports = Guide;
 
   /* ---------- Fin de séance ---------- */
   const hasCircuit = () => P.log.circuit.some(x => x.role === 'module');
+  const hasCore = () => P.log.circuit.some(x => x.role === 'core');
   function stepFeeling() {
     const opts = [[1, 'Facile', 'J\'avais de la marge'], [2, 'Juste bien', 'Exigeant mais propre'], [3, 'Dur', 'Les dernières ont piqué'], [4, 'Trop dur', 'Je n\'ai pas tenu']];
     const copts = [[1, 'Facile', 'J\'aurais pu en faire plus'], [2, 'Juste bien', 'Essoufflé mais à l\'aise'], [3, 'Dur', 'J\'ai dû ralentir'], [4, 'Trop dur', 'Nausée, vertige ou arrêt']];
     const group = (act, val, title, list) => `<div class="stack" style="gap:8px;width:min(100%,420px)"><b>${title}</b><div class="choice" style="width:100%">${list.map(([v, l, d]) => `<button data-act="${act}" data-v="${v}" aria-pressed="${val === v}">${l}<small>${d}</small></button>`).join('')}</div></div>`;
-    const hc = hasCircuit(), ready = P.feeling && (!hc || P.cfeel);
+    const kopts = [[1, 'Facile', 'J\'aurais tenu bien plus'], [2, 'Juste bien', 'Exigeant, position propre'], [3, 'Dur', 'Le bassin commençait à bouger'], [4, 'Trop dur', 'J\'ai lâché ou perdu la position']];
+    const hc = hasCircuit(), hk = hasCore(), ready = P.feeling && (!hc || P.cfeel) && (!hk || P.kfeel);
     const mainName = A.EX[P.plan.ex] ? A.EX[P.plan.ex].name.toLowerCase() : 'séries';
     chrome('Comment c\'était ?', 'Tes réponses règlent la prochaine séance',
-      `<span class="pname">Comment c'était ?</span>${group('p-feel', P.feeling, 'Les ' + mainName, opts)}${hc ? group('p-cfeel', P.cfeel, 'Le circuit', copts) : ''}
+      `<span class="pname">Comment c'était ?</span>${group('p-feel', P.feeling, 'Les ' + mainName, opts)}${hk ? group('p-kfeel', P.kfeel, 'Le gainage', kopts) : ''}${hc ? group('p-cfeel', P.cfeel, 'Le circuit', copts) : ''}
        <label class="check"><input type="checkbox" id="pain" ${P.pain ? 'checked' : ''}>J'ai ressenti une douleur (articulation, dos, poitrine)</label>`,
       `<button class="btn btn-sun btn-block" data-act="p-finish" ${ready ? '' : 'disabled style="opacity:.45"'}>Terminer la séance</button>`);
     if (!P.feelSaid) { P.feelSaid = true; say('Séance terminée. Comment c\'était ?'); }
@@ -3153,7 +3163,7 @@ if (typeof module !== 'undefined') module.exports = Guide;
       return showBackResults(r.summary);
     }
     const before = A.playerLevel(A.totalXp(S));
-    const log = { date: k, startedAt: P.startedAt, completedAt: new Date().toISOString(), durSec: Math.round((Date.now() - P.t0) / 1000), feeling: P.feeling || 2, pain: P.pain, light: !!P.plan.light, sets: P.log.sets, intervals: P.log.intervals, tests: P.plan.kind === 'test' ? P.log.tests : null, stretch: P.log.stretch, flex: P.log.flex, circuit: P.log.circuit, cfeel: P.cfeel || null };
+    const log = { date: k, startedAt: P.startedAt, completedAt: new Date().toISOString(), durSec: Math.round((Date.now() - P.t0) / 1000), feeling: P.feeling || 2, pain: P.pain, light: !!P.plan.light, sets: P.log.sets, intervals: P.log.intervals, tests: P.plan.kind === 'test' ? P.log.tests : null, stretch: P.log.stretch, flex: P.log.flex, circuit: P.log.circuit, cfeel: P.cfeel || null, kfeel: P.kfeel || null };
     const r = A.applySession(S, P.plan, log);
     S = r.state; save();
     const after = A.playerLevel(A.totalXp(S));
@@ -3214,8 +3224,9 @@ if (typeof module !== 'undefined') module.exports = Guide;
     wakeOff();
   }
   const KWHY = {
-    monte: 'Positions tenues jusqu\'au bout : 5 à 10 s de plus la prochaine fois.', consolide: 'Presque tout tenu : même durée la prochaine fois.',
-    recul: 'Tu as lâché plus tôt : la durée baisse un peu.', douleur: 'Douleur signalée : le gainage baisse de deux crans.', stable: 'Semaine allégée : même durée la prochaine fois.'
+    saut: 'Facile : le gainage monte de deux crans.', monte: 'Juste bien : le gainage monte d\'un cran.', consolide: 'Dur ou pas tout tenu : même durée la prochaine fois.',
+    recul: 'Trop dur ou lâché tôt : la durée baisse.', douleur: 'Douleur signalée : le gainage baisse de deux crans.', stable: 'Séance allégée : même durée la prochaine fois.',
+    plafond: 'Plafond atteint (1 min de planche, 45 s par côté) : on entretient.'
   };
   const CWHY = {
     saut: 'Facile : le circuit monte de deux crans.', monte: 'Le circuit monte d\'un cran.', consolide: 'Dur : même dose la prochaine fois.',
@@ -3356,7 +3367,8 @@ if (typeof module !== 'undefined') module.exports = Guide;
       case 'p-validate': { const v = P.sub.value; P.sub = null; recordSet(cur(), v); break; }
       case 'p-feel': P.feeling = parseInt(t.dataset.v, 10); P.pain = !!($('#pain') || {}).checked; stepFeeling(); break;
       case 'p-cfeel': P.cfeel = parseInt(t.dataset.v, 10); P.pain = !!($('#pain') || {}).checked; stepFeeling(); break;
-      case 'p-finish': if (P.feeling && (!hasCircuit() || P.cfeel)) { P.pain = !!($('#pain') || {}).checked; finish(); } break;
+      case 'p-kfeel': P.kfeel = parseInt(t.dataset.v, 10); P.pain = !!($('#pain') || {}).checked; stepFeeling(); break;
+      case 'p-finish': if (P.feeling && (!hasCircuit() || P.cfeel) && (!hasCore() || P.kfeel)) { P.pain = !!($('#pain') || {}).checked; finish(); } break;
       case 'p-close': closePlayer(); break;
     }
   });
